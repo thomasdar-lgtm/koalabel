@@ -86,7 +86,11 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 .set input[type=range]{accent-color:var(--yel);flex:1;max-width:220px}
 .hint{font-size:13px;color:var(--mut);line-height:1.5}
 .hint b{color:var(--txt)}
-.ver{color:var(--mut);font-size:12px;text-align:center;padding-top:12px}
+.hver{color:var(--mut);font-size:12px;font-weight:700;align-self:flex-end;margin:0 0 6px -6px}
+.majBar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px #000a;font-size:14px;font-weight:600}
+.majBar b{font-weight:900;color:var(--yel)}
+.majBar .mj{margin-left:auto}
+.majBar .mx{background:none;border:0;color:var(--mut);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
 .preset{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 /* Éditeur */
 .modal{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column}
@@ -116,7 +120,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <body>
 <header>
   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#00071a" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 7v5M10.5 7v5M13 7v5M16 7v5M8 16h8"/></svg></div>
-  <h1>Koa<span>Label</span></h1>
+  <h1>Koa<span>Label</span></h1><span class="hver" id="ver"></span>
   <div class="hbtns">
   <button class="gear" id="openHist" title="Historique" aria-label="Historique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="badge" id="histN" hidden></span></button>
   <button class="gear" id="openSet" title="Réglages" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
@@ -137,7 +141,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
     <div class="shead"><b>Réglages</b><button class="btn s" id="closeSet" aria-label="Fermer">✕</button></div>
     <div class="line"><span>Marge</span><input type="range" id="margin" min="0" max="6" step="0.5"><b id="marginV"></b></div>
     <div class="line"><span>Recadrages mémorisés</span><span id="presets" class="hint"></span></div>
-    <div class="ver">KoaLabel <span id="ver"></span></div>
+    <div class="line"><span>Application</span><button class="btn s" id="reloadApp">Recharger l'app</button></div>
   </div>
 </div>
 
@@ -173,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -647,6 +651,31 @@ function renderCard(it) {
   el.querySelector('[data-act=edit]').onclick = () => openEditor(it);
   el.querySelector('[data-act=del]').onclick = () => removeItem(it);
   fitSingle();
+  if (it.blob) paintPreview(it, cv);
+}
+// Aperçu net : rendu du PDF final à la résolution réelle de l'écran
+async function paintPreview(it, cv) {
+  const g = it.gen, cssW = cv.clientWidth;
+  if (!cssW) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  try {
+    if (!it.outDoc || it.outGen !== g) {
+      if (it.outDoc) { it.outDoc.destroy(); it.outDoc = null; }
+      const bytes = new Uint8Array(await it.blob.arrayBuffer());
+      if (g !== it.gen) return;
+      it.outDoc = await pdfjsLib.getDocument({ data: bytes, isEvalSupported: false }).promise;
+      it.outGen = g;
+    }
+    const page = await it.outDoc.getPage(1);
+    const vp = page.getViewport({ scale: cssW * dpr / page.getViewport({ scale: 1 }).width });
+    const off = document.createElement('canvas');
+    off.width = Math.round(vp.width); off.height = Math.round(vp.height);
+    const x = off.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, off.width, off.height);
+    await page.render({ canvasContext: x, viewport: vp }).promise;
+    if (g !== it.gen || !cv.isConnected) return;
+    cv.width = off.width; cv.height = off.height;
+    cv.getContext('2d').drawImage(off, 0, 0);
+  } catch (e) { console.warn('Aperçu', e); }
 }
 // Une seule étiquette : l'aperçu prend la place disponible, sans faire défiler la page
 function fitSingle() {
@@ -664,12 +693,14 @@ function fitSingle() {
   cv.style.width = w + 'px'; cv.style.height = h + 'px';
   card.style.width = (w + padX) + 'px';
 }
-window.addEventListener('resize', fitSingle);
+let resizeT = null;
+window.addEventListener('resize', () => { fitSingle(); clearTimeout(resizeT); resizeT = setTimeout(rerenderAll, 250); });
 function removeItem(it) {
   const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
   const el = document.querySelector(`.card[data-id="${it.id}"]`); if (el) el.remove();
   if (it.view) it.view.width = it.view.height = 0;
   it.gen = (it.gen || 0) + 1;   // annule une conversion en cours
+  if (it.outDoc) { it.outDoc.destroy(); it.outDoc = null; }
   syncGrid(); fitSingle();
 }
 function rerenderAll() { items.forEach(renderCard); }
@@ -960,6 +991,47 @@ renderPresets(); refreshHistCount();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
 }
+
+/* ---------- Mise à jour (même fonctionnement que PoKoalaShop) ----------
+   L'appli vérifie elle-même la version en ligne, en contournant les caches,
+   et propose de recharger : jamais besoin de vider le cache de Chrome. */
+let majVue = null;
+async function checkUpdate() {
+  try {
+    const r = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const m = (await r.text()).match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if (m && m[1] !== APP_VERSION && m[1] !== majVue) showMaj(m[1]);
+  } catch (e) { }
+}
+function showMaj(v) {
+  majVue = v;
+  if ($('majBar')) return;
+  const d = document.createElement('div');
+  d.className = 'majBar'; d.id = 'majBar';
+  d.innerHTML = `<span>Version <b>${esc(v)}</b> disponible</span><button class="btn y s mj" id="majGo">Recharger</button><button class="mx" id="majNo" aria-label="Plus tard">×</button>`;
+  document.body.appendChild(d);
+  $('majNo').onclick = () => d.remove();
+  $('majGo').onclick = hardReload;
+}
+// purge la coquille en cache puis recharge ; l'historique (IndexedDB) n'est pas touché
+async function hardReload() {
+  const b = $('majGo') || $('reloadApp');
+  if (b) { b.textContent = '…'; b.disabled = true; }
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k.startsWith('koalabel-')).map(k => caches.delete(k)));
+  } catch (e) { }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) { await reg.update(); if (reg.waiting) reg.waiting.postMessage('skipWaiting'); }
+  } catch (e) { }
+  location.replace(location.pathname + '?maj=' + Date.now());
+}
+$('reloadApp').onclick = hardReload;
+setTimeout(checkUpdate, 4000);
+setInterval(checkUpdate, 10 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 window.KoaLabel = { items, buildPdf, addFiles, presets: () => presets, version: APP_VERSION, dbAll, idle: () => !busy && items.every(i => i.error || i.blob) };
 </script>

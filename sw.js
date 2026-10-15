@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_VERSION = '1.1.2';
+const CACHE_VERSION = '1.1.3';
 const CACHE = 'koalabel-' + CACHE_VERSION;
 const CORE = [
   './',
@@ -24,19 +24,25 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Page : réseau d'abord (mises à jour), cache si hors ligne
-  if (req.mode === 'navigate') {
+  // Coquille (page, index.html, manifest) : réseau d'abord sans cache HTTP, cache si hors ligne
+  const shell = req.mode === 'navigate' || url.origin === location.origin &&
+    (/\/(index\.html|manifest\.json)$/.test(url.pathname) || url.pathname === new URL('./', location).pathname);
+  if (shell) {
     e.respondWith(
-      fetch(req).then(r => {
-        const copy = r.clone();
-        caches.open(CACHE).then(c => c.put('index.html', copy));
+      fetch(req.url, { cache: 'reload', credentials: 'same-origin' }).then(r => {
+        if (r.ok && (req.mode === 'navigate' || url.pathname.endsWith('/index.html'))) {
+          const copy = r.clone();
+          caches.open(CACHE).then(c => c.put('index.html', copy));
+        }
         return r;
-      }).catch(() => caches.match('index.html'))
+      }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('index.html')))
     );
     return;
   }
