@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KoaLabel</title>
+<meta name="theme-color" content="#00071a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#00071a; --panel:#0b1530; --panel2:#111d3d; --line:#22305a;
+  --txt:#eef2ff; --mut:#93a0c4; --yel:#ffcb05; --red:#e3350d; --ok:#2ecc71; --warn:#ff9f1a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Raleway,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;padding-bottom:110px}
+button,select,input{font:inherit;color:inherit}
+header{padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:10px;background:var(--yel);display:grid;place-items:center;flex:none}
+.logo svg{width:28px;height:28px}
+h1{font-weight:900;font-size:26px;margin:0;letter-spacing:.5px}
+h1 span{color:var(--yel)}
+.sub{color:var(--mut);font-size:13px;margin-top:2px}
+main{max-width:1100px;margin:0 auto;padding:0 16px}
+.drop{margin:12px 0;border:2px dashed var(--line);border-radius:16px;padding:26px 16px;text-align:center;background:var(--panel);cursor:pointer;transition:.15s}
+.drop.over{border-color:var(--yel);background:var(--panel2)}
+.drop b{font-weight:900;font-size:18px;display:block;margin-bottom:6px}
+.drop small{color:var(--mut)}
+.btn{border:0;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--panel2);border:1px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.y{background:var(--yel);color:#00071a;border-color:var(--yel)}
+.btn.r{background:var(--red);border-color:var(--red)}
+.btn.s{padding:7px 11px;font-size:13px;border-radius:10px}
+.status{color:var(--mut);font-size:14px;min-height:20px;margin:6px 2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:8px}
+.card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.card.off{opacity:.5}
+.card.err{border-color:var(--red)}
+.prev{width:100%;aspect-ratio:100/150;background:#fff;border-radius:6px;display:block;box-shadow:0 0 0 1px #0003}
+.meta{font-size:12px;color:var(--mut);word-break:break-all}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.row select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:13px;flex:1;min-width:0}
+.tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px;background:var(--panel2);border:1px solid var(--line)}
+.tag.preset{color:var(--ok);border-color:#2ecc7155}
+.tag.auto{color:var(--yel);border-color:#ffcb0555}
+.tag.manual{color:#8fb4ff;border-color:#8fb4ff55}
+.tag.warn{color:var(--warn);border-color:#ff9f1a55}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none}
+.chk input{width:18px;height:18px;accent-color:var(--yel)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#000b24ee;backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.bar .in{max-width:1100px;margin:0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar .cnt{font-weight:900;margin-right:auto}
+details.set{margin:18px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+details.set summary{cursor:pointer;font-weight:700}
+.set .line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.set .line:first-of-type{border-top:0}
+.set input[type=range]{accent-color:var(--yel);flex:1;max-width:220px}
+.hint{font-size:13px;color:var(--mut);line-height:1.5}
+.hint b{color:var(--txt)}
+footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
+/* Éditeur */
+.modal{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column}
+.modal.on{display:flex}
+.mhead{padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line)}
+.mhead b{font-weight:900;margin-right:auto}
+.mhead select{max-width:60%}
+.mbody{flex:1 1 0;display:flex;gap:14px;padding:12px;min-height:0;overflow:hidden;align-items:center;justify-content:center}
+.stage{position:relative;max-width:100%;max-height:100%;touch-action:none;user-select:none}
+.stage canvas{display:block;width:100%;height:100%;background:#fff;border-radius:4px}
+.crop{position:absolute;border:2px solid var(--yel);box-shadow:0 0 0 9999px #00071a99;cursor:move}
+.h{position:absolute;width:22px;height:22px;background:var(--yel);border:2px solid #00071a;border-radius:50%;transform:translate(-50%,-50%)}
+.h[data-h=nw]{left:0;top:0;cursor:nwse-resize}.h[data-h=n]{left:50%;top:0;cursor:ns-resize}.h[data-h=ne]{left:100%;top:0;cursor:nesw-resize}
+.h[data-h=e]{left:100%;top:50%;cursor:ew-resize}.h[data-h=se]{left:100%;top:100%;cursor:nwse-resize}.h[data-h=s]{left:50%;top:100%;cursor:ns-resize}
+.h[data-h=sw]{left:0;top:100%;cursor:nesw-resize}.h[data-h=w]{left:0;top:50%;cursor:ew-resize}
+.side{width:170px;flex:none;display:flex;flex-direction:column;gap:8px}
+.side canvas{width:100%;aspect-ratio:100/150;background:#fff;border-radius:6px}
+.mfoot{padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border-top:1px solid var(--line)}
+.mfoot .sp{flex:1}
+@media (max-width:700px){
+  .mbody{flex-direction:column}
+  .side{width:100%;flex-direction:row;align-items:center}
+  .side canvas{width:70px}
+  .side .hint{display:none}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card{padding:8px}
+  .card .btn.s{padding:6px 9px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#00071a" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 7v5M10.5 7v5M13 7v5M16 7v5M8 16h8"/></svg></div>
+  <div><h1>Koa<span>Label</span></h1><div class="sub">Bordereaux Vinted → étiquettes thermiques 100 × 150 mm</div></div>
+</header>
+
+<main>
+  <div class="drop" id="drop" tabindex="0" role="button">
+    <b>Dépose tes bordereaux PDF ici</b>
+    <small>ou touche pour choisir · plusieurs fichiers possibles · Mondial Relay, Chronopost, Colissimo, format Vinted</small>
+    <input type="file" id="file" accept="application/pdf,.pdf,image/*" multiple hidden>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="grid" id="grid"></div>
+
+  <details class="set" id="settings">
+    <summary>Réglages et transporteurs mémorisés</summary>
+    <div class="line"><span>Marge autour de l'étiquette</span><input type="range" id="margin" min="0" max="6" step="0.5"><b id="marginV"></b></div>
+    <div class="line"><span>Recadrage mémorisé</span><span id="presets" class="hint"></span></div>
+    <div class="line"><span class="hint">À l'impression : format <b>100 × 150 mm</b>, échelle <b>100 % / taille réelle</b> (pas « ajuster à la page »).</span></div>
+  </details>
+  <footer>KoaLabel <span id="ver"></span> · tout est traité sur ton appareil, rien n'est envoyé</footer>
+</main>
+
+<div class="bar">
+  <div class="in">
+    <span class="cnt" id="count">0 étiquette</span>
+    <button class="btn s" id="clear" disabled>Vider</button>
+    <button class="btn" id="dl" disabled>Télécharger</button>
+    <button class="btn y" id="print" disabled>Imprimer</button>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="mhead"><b id="mTitle">Ajuster</b>
+    <select id="mCarrier" class="btn s"></select>
+  </div>
+  <div class="mbody">
+    <div class="stage" id="stage"><canvas id="mCanvas"></canvas>
+      <div class="crop" id="crop"><i class="h" data-h="nw"></i><i class="h" data-h="n"></i><i class="h" data-h="ne"></i><i class="h" data-h="e"></i><i class="h" data-h="se"></i><i class="h" data-h="s"></i><i class="h" data-h="sw"></i><i class="h" data-h="w"></i></div>
+    </div>
+    <div class="side">
+      <canvas id="mPrev" width="200" height="300"></canvas>
+      <div class="hint">Aperçu de l'étiquette imprimée</div>
+    </div>
+  </div>
+  <div class="mfoot">
+    <button class="btn s" id="mAuto">Détection auto</button>
+    <button class="btn s" id="mRot">Pivoter ↻</button>
+    <label class="chk"><input type="checkbox" id="mMem" checked> Mémoriser pour ce transporteur</label>
+    <span class="sp"></span>
+    <button class="btn s" id="mCancel">Annuler</button>
+    <button class="btn y s" id="mOk">Valider</button>
+  </div>
+</div>
+
+<script src="lib/pdf.min.js"></script>
+<script src="lib/pdf-lib.min.js"></script>
+<script>
+'use strict';
+const APP_VERSION = '1.0.0';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+const { PDFDocument, degrees } = PDFLib;
+
+const MM = 72 / 25.4;              // points par mm
+const OUT_W = 100, OUT_H = 150;    // mm
+const ANA_PX = 2000;               // résolution d'analyse (plus grand côté)
+const VIEW_PX = 1100;              // résolution d'affichage
+const CARRIERS = {
+  mondialrelay: 'Mondial Relay / InPost',
+  chronopost: 'Chronopost',
+  colissimo: 'Colissimo',
+  vinted: 'Format Vinted (générique)',
+  autre: 'Autre / inconnu'
+};
+const LS_PRESETS = 'koalabel.presets.v1';
+const LS_SETTINGS = 'koalabel.settings.v1';
+
+/* ---------- Stockage ---------- */
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
+let presets = lsGet(LS_PRESETS, {});
+let settings = Object.assign({ margin: 2 }, lsGet(LS_SETTINGS, {}));
+
+/* ---------- État ---------- */
+const sources = [];   // { name, bytes }
+const items = [];     // une entrée par page
+let uid = 0;
+let busy = false;
+
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const norm360 = a => ((Math.round(a / 90) * 90) % 360 + 360) % 360;
+
+/* ---------- Détection du transporteur ---------- */
+function detectCarrier(text, creator) {
+  const t = (text + ' ' + (creator || '')).toLowerCase().replace(/\s+/g, ' ');
+  const tn = t.replace(/[\s-]/g, '');
+  if (tn.includes('chronopost')) return 'chronopost';
+  if (tn.includes('colissimo')) return 'colissimo';
+  if (tn.includes('mondialrelay') || tn.includes('inpost')) return 'mondialrelay';
+  if (t.includes('coup de ciseaux') || t.includes('imprime l’étiquette') || t.includes("imprime l'étiquette")) return 'vinted';
+  return 'autre';
+}
+
+/* ---------- Analyse d'image ---------- */
+// Renvoie la zone d'étiquette détectée (coordonnées normalisées 0..1) + grilles pour le rognage.
+function analyze(data, W, H, pxPerMm) {
+  const n = W * H;
+  const ink = new Uint8Array(n), lite = new Uint8Array(n);
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const l = (data[j] * 77 + data[j + 1] * 150 + data[j + 2] * 29) >> 8;
+    ink[i] = l < 215 ? 1 : 0;
+    lite[i] = l < 242 ? 1 : 0;
+  }
+
+  // 1) Lignes de découpe (fines, longues, isolées) — souvent pointillées et grises
+  const rowC = new Uint32Array(H), rowA = new Int32Array(H).fill(-1), rowB = new Int32Array(H);
+  const colC = new Uint32Array(W), colA = new Int32Array(W).fill(-1), colB = new Int32Array(W);
+  for (let y = 0; y < H; y++) {
+    const o = y * W;
+    for (let x = 0; x < W; x++) if (lite[o + x]) {
+      rowC[y]++; if (rowA[y] < 0) rowA[y] = x; rowB[y] = x;
+      colC[x]++; if (colA[x] < 0) colA[x] = y; colB[x] = y;
+    }
+  }
+  const off = Math.max(3, Math.round(pxPerMm * 0.8));
+  const sepH = [], sepV = [];
+  for (let y = off; y < H - off; y++) {
+    if (rowC[y] >= 0.25 * W && rowB[y] - rowA[y] >= 0.5 * W && rowC[y - off] <= 0.04 * W && rowC[y + off] <= 0.04 * W) {
+      if (!sepH.length || y - sepH[sepH.length - 1] > off) sepH.push(y);
+    }
+  }
+  for (let x = off; x < W - off; x++) {
+    if (colC[x] >= 0.25 * H && colB[x] - colA[x] >= 0.5 * H && colC[x - off] <= 0.04 * H && colC[x + off] <= 0.04 * H) {
+      if (!sepV.length || x - sepV[sepV.length - 1] > off) sepV.push(x);
+    }
+  }
+
+  // 2) Grille d'occupation + transitions (repérage des codes-barres)
+  const C = Math.max(3, Math.round(pxPerMm * 0.75));
+  const gw = Math.ceil(W / C), gh = Math.ceil(H / C), gn = gw * gh;
+  const occ = new Uint16Array(gn), ht = new Uint16Array(gn), vt = new Uint16Array(gn);
+  for (let y = 0; y < H; y++) {
+    const o = y * W, gy = ((y / C) | 0) * gw;
+    for (let x = 0; x < W; x++) {
+      const i = o + x, g = gy + ((x / C) | 0);
+      if (lite[i]) occ[g]++;
+      if (x > 0 && ink[i] !== ink[i - 1]) ht[g]++;
+      if (y > 0 && ink[i] !== ink[i - W]) vt[g]++;
+    }
+  }
+  const bc = new Uint8Array(gn);
+  const B = 4, span = B * C;
+  for (let gy = 0; gy + B <= gh; gy += 2) for (let gx = 0; gx + B <= gw; gx += 2) {
+    let hs = 0, vs = 0, os = 0;
+    for (let dy = 0; dy < B; dy++) for (let dx = 0; dx < B; dx++) {
+      const g = (gy + dy) * gw + gx + dx; hs += ht[g]; vs += vt[g]; os += occ[g];
+    }
+    const hr = hs / span, vr = vs / span, fill = os / (span * span);
+    if (fill < 0.15 || fill > 0.85) continue;
+    if ((hr >= 4 && vr <= hr * 0.3) || (vr >= 4 && hr <= vr * 0.3)) {
+      for (let dy = 0; dy < B; dy++) for (let dx = 0; dx < B; dx++) bc[(gy + dy) * gw + gx + dx] = 1;
+    }
+  }
+
+  // 3) Composantes connexes (cases occupées, dilatées ~1,5 mm)
+  const r = Math.max(1, Math.round(1.5 / (C / pxPerMm)));
+  const tmp = new Uint8Array(gn), dil = new Uint8Array(gn);
+  for (let gy = 0; gy < gh; gy++) { // dilatation horizontale
+    let run = 0;
+    for (let gx = 0; gx < gw; gx++) {
+      // fenêtre glissante [gx-r, gx+r]
+      if (gx === 0) { run = 0; for (let k = 0; k <= r && k < gw; k++) run += occ[gy * gw + k] > 0 ? 1 : 0; }
+      else {
+        const add = gx + r, rem = gx - r - 1;
+        if (add < gw) run += occ[gy * gw + add] > 0 ? 1 : 0;
+        if (rem >= 0) run -= occ[gy * gw + rem] > 0 ? 1 : 0;
+      }
+      tmp[gy * gw + gx] = run > 0 ? 1 : 0;
+    }
+  }
+  for (let gx = 0; gx < gw; gx++) { // dilatation verticale
+    let run = 0;
+    for (let gy = 0; gy < gh; gy++) {
+      if (gy === 0) { run = 0; for (let k = 0; k <= r && k < gh; k++) run += tmp[k * gw + gx]; }
+      else {
+        const add = gy + r, rem = gy - r - 1;
+        if (add < gh) run += tmp[add * gw + gx];
+        if (rem >= 0) run -= tmp[rem * gw + gx];
+      }
+      dil[gy * gw + gx] = run > 0 ? 1 : 0;
+    }
+  }
+  const lab = new Int32Array(gn).fill(-1);
+  const comps = [];
+  const stack = new Int32Array(gn);
+  for (let s = 0; s < gn; s++) {
+    if (!dil[s] || lab[s] >= 0) continue;
+    const id = comps.length;
+    const c = { id, x0: 1e9, y0: 1e9, x1: -1, y1: -1, ink: 0, bar: 0, bx: 0, by: 0 };
+    let sp = 0; stack[sp++] = s; lab[s] = id;
+    while (sp) {
+      const g = stack[--sp], gx = g % gw, gy = (g / gw) | 0;
+      if (occ[g]) {
+        if (gx < c.x0) c.x0 = gx; if (gx > c.x1) c.x1 = gx;
+        if (gy < c.y0) c.y0 = gy; if (gy > c.y1) c.y1 = gy;
+        c.ink += occ[g];
+        if (bc[g]) { c.bar++; c.bx += gx; c.by += gy; }
+      }
+      if (gx > 0 && dil[g - 1] && lab[g - 1] < 0) { lab[g - 1] = id; stack[sp++] = g - 1; }
+      if (gx < gw - 1 && dil[g + 1] && lab[g + 1] < 0) { lab[g + 1] = id; stack[sp++] = g + 1; }
+      if (gy > 0 && dil[g - gw] && lab[g - gw] < 0) { lab[g - gw] = id; stack[sp++] = g - gw; }
+      if (gy < gh - 1 && dil[g + gw] && lab[g + gw] < 0) { lab[g + gw] = id; stack[sp++] = g + gw; }
+    }
+    if (c.x1 >= 0) comps.push(c); else comps.push(null);
+  }
+  const cellMm = C / pxPerMm;
+  const list = comps.filter(Boolean).map(c => {
+    // en pixels
+    c.px0 = c.x0 * C; c.py0 = c.y0 * C; c.px1 = Math.min(W - 1, (c.x1 + 1) * C - 1); c.py1 = Math.min(H - 1, (c.y1 + 1) * C - 1);
+    const wmm = (c.x1 - c.x0 + 1) * cellMm, hmm = (c.y1 - c.y0 + 1) * cellMm;
+    c.isLine = c.bar < 6 && ((hmm <= 2.5 && wmm >= 40) || (wmm <= 2.5 && hmm >= 40));
+    return c;
+  });
+
+  // 4) Graine = composante avec le plus gros code-barres
+  let seed = null;
+  for (const c of list) if (!c.isLine && (!seed || c.bar > seed.bar)) seed = c;
+  const hasBarcode = !!seed && seed.bar >= 6;
+  if (!hasBarcode) { seed = null; for (const c of list) if (!c.isLine && (!seed || c.ink > seed.ink)) seed = c; }
+  if (!seed) return { box: [0, 0, 1, 1], hasBarcode: false, framed: false, grid: { occ, bc, gw, gh, C, W, H, pxPerMm }, bar: null };
+
+  // 5) Étiquette encadrée ? (cadre autour du code-barres = l'étiquette elle-même)
+  // inward : +1 = vers le bas/la droite, -1 = vers le haut/la gauche
+  function edgeCov(horizontal, pos, inward, a, b) {
+    let best = 0;
+    for (let d = -2; d <= 2 * C; d++) {
+      const p = pos + inward * d;
+      if (horizontal ? (p < 0 || p >= H) : (p < 0 || p >= W)) continue;
+      let cnt = 0;
+      if (horizontal) { const o = p * W; for (let x = a; x <= b; x++) cnt += lite[o + x]; }
+      else { for (let y = a; y <= b; y++) cnt += lite[y * W + p]; }
+      if (cnt > best) best = cnt;
+    }
+    return best / (b - a + 1);
+  }
+  const frameSides = c => [
+    edgeCov(true, c.py0, 1, c.px0, c.px1), edgeCov(true, c.py1, -1, c.px0, c.px1),
+    edgeCov(false, c.px0, 1, c.py0, c.py1), edgeCov(false, c.px1, -1, c.py0, c.py1)
+  ].filter(v => v >= 0.7).length;
+  // un code-barres seul ressemble à un cadre (barres alignées) : on l'exclut
+  const seedDensity = seed.bar / ((seed.x1 - seed.x0 + 1) * (seed.y1 - seed.y0 + 1));
+  let framed = false, sides = seedDensity < 0.4 ? frameSides(seed) : 0;
+  if (sides >= 3) framed = true;
+  else {
+    // plus petit bloc encadré qui contient le code-barres
+    let best = null;
+    for (const c of list) {
+      if (c === seed || c.isLine) continue;
+      if (c.px0 > seed.px0 || c.py0 > seed.py0 || c.px1 < seed.px1 || c.py1 < seed.py1) continue;
+      const a = (c.px1 - c.px0) / pxPerMm, b = (c.py1 - c.py0) / pxPerMm;
+      if (Math.max(a, b) > 230 || Math.min(a, b) > 165 || Math.min(a, b) < 40) continue;
+      if (best && (c.px1 - c.px0) * (c.py1 - c.py0) >= (best.px1 - best.px0) * (best.py1 - best.py0)) continue;
+      if (frameSides(c) >= 3) best = c;
+    }
+    if (best) { seed = Object.assign({}, best, { bar: seed.bar, bx: seed.bx, by: seed.by, id: best.id, sid: seed.id }); framed = true; sides = 4; }
+  }
+
+  // 6) Fusion des blocs voisins (sans franchir une ligne de découpe)
+  const gapMax = (framed ? 3 : 9) * pxPerMm;
+  const box = { x0: seed.px0, y0: seed.py0, x1: seed.px1, y1: seed.py1 };
+  const used = new Set([seed.id, seed.sid]);
+  const separated = (a, c) => {
+    // une ligne de découpe hors de la zone, que le bloc candidat touche ou dépasse
+    for (const y of sepH) if ((y > a.y1 && y <= c.py1) || (y < a.y0 && y >= c.py0)) return true;
+    for (const x of sepV) if ((x > a.x1 && x <= c.px1) || (x < a.x0 && x >= c.px0)) return true;
+    return false;
+  };
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const c of list) {
+      if (used.has(c.id) || c.isLine) continue;
+      const dx = Math.max(0, c.px0 - box.x1, box.x0 - c.px1), dy = Math.max(0, c.py0 - box.y1, box.y0 - c.py1);
+      if (Math.max(dx, dy) > gapMax) continue;
+      const u = { x0: Math.min(box.x0, c.px0), y0: Math.min(box.y0, c.py0), x1: Math.max(box.x1, c.px1), y1: Math.max(box.y1, c.py1) };
+      const a = (u.x1 - u.x0) / pxPerMm, b = (u.y1 - u.y0) / pxPerMm;
+      if (Math.max(a, b) > 230 || Math.min(a, b) > 165) continue;
+      if (separated(box, c)) continue;
+      Object.assign(box, u); used.add(c.id); changed = true;
+    }
+  }
+  const pad = 0.7 * pxPerMm;
+  const nb = [clamp((box.x0 - pad) / W, 0, 1), clamp((box.y0 - pad) / H, 0, 1), clamp((box.x1 + 1 + pad) / W, 0, 1), clamp((box.y1 + 1 + pad) / H, 0, 1)];
+  const bar = hasBarcode ? { x: ((seed.bx / seed.bar) + 0.5) * C / W, y: ((seed.by / seed.bar) + 0.5) * C / H } : null;
+  return { box: nb, hasBarcode, framed, bar, grid: { occ, bc, gw, gh, C, W, H, pxPerMm } };
+}
+
+// Resserre un recadrage mémorisé sur le contenu réel (ne l'agrandit jamais)
+function trimCrop(grid, crop) {
+  const { occ, gw, gh, C, W, H, pxPerMm } = grid;
+  const gx0 = Math.max(0, Math.floor(crop[0] * W / C)), gy0 = Math.max(0, Math.floor(crop[1] * H / C));
+  const gx1 = Math.min(gw - 1, Math.ceil(crop[2] * W / C) - 1), gy1 = Math.min(gh - 1, Math.ceil(crop[3] * H / C) - 1);
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+  for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (occ[gy * gw + gx]) {
+    if (gx < x0) x0 = gx; if (gx > x1) x1 = gx; if (gy < y0) y0 = gy; if (gy > y1) y1 = gy;
+  }
+  if (x1 < 0) return crop.slice();
+  const pad = 0.7 * pxPerMm;
+  return [
+    clamp(Math.max(crop[0], (x0 * C - pad) / W), 0, 1), clamp(Math.max(crop[1], (y0 * C - pad) / H), 0, 1),
+    clamp(Math.min(crop[2], ((x1 + 1) * C + pad) / W), 0, 1), clamp(Math.min(crop[3], ((y1 + 1) * C + pad) / H), 0, 1)
+  ];
+}
+
+/* ---------- Orientation ---------- */
+// Rotation horaire (0/90/180/270) qui remet le texte à l'endroit, et l'étiquette en portrait.
+function autoRotation(it, crop) {
+  const vw = it.vp1.width, vh = it.vp1.height;
+  let rot = null;
+  // a) d'après le sens du texte à l'intérieur du recadrage
+  const votes = { 0: 0, 90: 0, 180: 0, 270: 0 };
+  for (const t of it.textItems) {
+    const x = t.vx / vw, y = t.vy / vh;
+    if (x < crop[0] || x > crop[2] || y < crop[1] || y > crop[3]) continue;
+    votes[t.angle] += t.len;
+  }
+  const total = votes[0] + votes[90] + votes[180] + votes[270];
+  if (total >= 15) rot = +Object.keys(votes).reduce((a, b) => votes[a] >= votes[b] ? a : b);
+  // b) sans texte lisible : le gros code-barres va en haut (convention Mondial Relay)
+  if (rot === null) {
+    const b = it.ana.bar;
+    if (b && b.x >= crop[0] && b.x <= crop[2] && b.y >= crop[1] && b.y <= crop[3]) {
+      const dx = (b.x - (crop[0] + crop[2]) / 2) * vw, dy = (b.y - (crop[1] + crop[3]) / 2) * vh;
+      if (Math.abs(dx) > Math.abs(dy)) rot = dx > 0 ? 270 : 90; else rot = dy > 0 ? 180 : 0;
+    } else rot = 0;
+  }
+  // c) toujours finir en portrait
+  const cw = (crop[2] - crop[0]) * vw, ch = (crop[3] - crop[1]) * vh;
+  const landscape = rot % 180 === 0 ? cw > ch * 1.02 : ch > cw * 1.02;
+  if (landscape) rot = (rot + 90) % 360;
+  return rot;
+}
+
+/* ---------- Préréglages par transporteur ---------- */
+function getPreset(carrier, aspect) {
+  const p = presets[carrier];
+  if (!p || Math.abs(p.aspect - aspect) > 0.03) return null;
+  return p;
+}
+function applyCrop(it) {
+  const p = getPreset(it.carrier, it.aspect);
+  if (p) {
+    it.crop = trimCrop(it.ana.grid, p.crop);
+    it.rot = p.rot;
+    it.source = 'preset';
+  } else {
+    it.crop = it.ana.box.slice();
+    it.rot = autoRotation(it, it.crop);
+    it.source = 'auto';
+  }
+}
+
+/* ---------- Chargement ---------- */
+async function imageToPdf(file) {
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0);
+  const png = await new Promise(r => c.toBlob(r, 'image/png'));
+  const doc = await PDFDocument.create();
+  const img = await doc.embedPng(new Uint8Array(await png.arrayBuffer()));
+  const w = 210 * MM, h = w * bmp.height / bmp.width;
+  const page = doc.addPage([w, h]);
+  page.drawImage(img, { x: 0, y: 0, width: w, height: h });
+  return new Uint8Array(await doc.save());
+}
+
+async function addFiles(fileList) {
+  const files = [...fileList];
+  if (!files.length || busy) return;
+  busy = true; updateBar();
+  let k = 0;
+  for (const f of files) {
+    k++;
+    setStatus(`Analyse ${k}/${files.length} — ${f.name}`);
+    try {
+      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+      if (!isPdf && !(f.type || '').startsWith('image/')) throw new Error('Format non pris en charge');
+      const bytes = isPdf ? new Uint8Array(await f.arrayBuffer()) : await imageToPdf(f);
+      const si = sources.push({ name: f.name, bytes }) - 1;
+      const doc = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
+      let creator = '';
+      try { const md = await doc.getMetadata(); creator = (md.info && (md.info.Creator || '')) || ''; } catch (e) { }
+      for (let p = 1; p <= doc.numPages; p++) {
+        await processPage(doc, p, si, f.name, creator);
+      }
+      await doc.destroy();
+    } catch (e) {
+      console.error(e);
+      const it = { id: ++uid, error: (e && e.message) || 'Erreur', name: f.name, include: false };
+      items.push(it); renderCard(it);
+    }
+  }
+  busy = false;
+  const n = items.filter(i => !i.error).length;
+  setStatus(n ? 'Vérifie les aperçus, puis Imprimer.' : '');
+  updateBar();
+}
+
+async function processPage(doc, p, si, name, creator) {
+  const page = await doc.getPage(p);
+  const vp1 = page.getViewport({ scale: 1 });
+  // texte + orientation
+  let text = '';
+  const textItems = [];
+  try {
+    const tc = await page.getTextContent();
+    for (const t of tc.items) {
+      if (!t.str) continue;
+      text += t.str + ' ';
+      const s = t.str.trim(); if (!s) continue;
+      const [a, b, , , e, f] = t.transform;
+      const ang = Math.atan2(b, a) * 180 / Math.PI;
+      const [vx, vy] = vp1.convertToViewportPoint(e, f);
+      textItems.push({ vx, vy, len: s.length, angle: norm360(ang - page.rotate) });
+    }
+  } catch (e) { }
+  // rendu d'analyse
+  const sA = ANA_PX / Math.max(vp1.width, vp1.height);
+  const vpA = page.getViewport({ scale: sA });
+  const cA = document.createElement('canvas');
+  cA.width = Math.round(vpA.width); cA.height = Math.round(vpA.height);
+  const xA = cA.getContext('2d', { willReadFrequently: true });
+  xA.fillStyle = '#fff'; xA.fillRect(0, 0, cA.width, cA.height);
+  await page.render({ canvasContext: xA, viewport: vpA }).promise;
+  const pxPerMm = sA * MM;
+  const ana = analyze(xA.getImageData(0, 0, cA.width, cA.height).data, cA.width, cA.height, pxPerMm);
+  // rendu d'affichage (réduit)
+  const cV = document.createElement('canvas');
+  const sV = VIEW_PX / Math.max(cA.width, cA.height);
+  cV.width = Math.round(cA.width * sV); cV.height = Math.round(cA.height * sV);
+  const xV = cV.getContext('2d'); xV.imageSmoothingQuality = 'high'; xV.drawImage(cA, 0, 0, cV.width, cV.height);
+  cA.width = cA.height = 0;
+
+  const it = {
+    id: ++uid, src: si, name, pageNo: p, pages: doc.numPages,
+    vp1: { width: vp1.width, height: vp1.height, transform: vp1.transform },
+    vpObj: vp1, rotate: page.rotate, aspect: Math.round(vp1.width / vp1.height * 1000) / 1000,
+    textItems, ana, view: cV,
+    carrier: detectCarrier(text, creator), crop: null, rot: 0, source: 'auto', include: true
+  };
+  applyCrop(it);
+  it.include = ana.hasBarcode || it.source === 'preset';
+  it.note = ana.hasBarcode ? '' : 'Aucun code-barres repéré sur cette page';
+  page.cleanup();
+  items.push(it);
+  renderCard(it);
+}
+
+/* ---------- Dessin d'une étiquette (aperçu / secours raster) ---------- */
+function drawLabel(ctx, src, crop, rot, W, H, marginPx) {
+  const sx = crop[0] * src.width, sy = crop[1] * src.height;
+  const sw = (crop[2] - crop[0]) * src.width, sh = (crop[3] - crop[1]) * src.height;
+  const odd = rot % 180 !== 0;
+  const dw = odd ? sh : sw, dh = odd ? sw : sh;
+  const s = Math.min((W - 2 * marginPx) / dw, (H - 2 * marginPx) / dh);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(rot * Math.PI / 180);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, sx, sy, sw, sh, -sw * s / 2, -sh * s / 2, sw * s, sh * s);
+  ctx.restore();
+}
+
+/* ---------- Cartes ---------- */
+function carrierOptions(sel) {
+  return Object.entries(CARRIERS).map(([k, v]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${v}</option>`).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function renderCard(it) {
+  let el = document.querySelector(`.card[data-id="${it.id}"]`);
+  if (!el) { el = document.createElement('div'); el.className = 'card'; el.dataset.id = it.id; $('grid').appendChild(el); }
+  if (it.error) {
+    el.classList.add('err');
+    el.innerHTML = `<div class="meta"><b>${esc(it.name)}</b></div><div class="tag warn">Illisible : ${esc(it.error)}</div>
+      <button class="btn s" data-act="del">Retirer</button>`;
+    el.querySelector('[data-act=del]').onclick = () => removeItem(it);
+    updateBar(); return;
+  }
+  const tagCls = { preset: 'preset', auto: 'auto', manual: 'manual' }[it.source];
+  const tagTxt = { preset: 'Mémorisé', auto: 'Auto', manual: 'Ajusté' }[it.source];
+  el.classList.toggle('off', !it.include);
+  el.innerHTML = `
+    <canvas class="prev" width="300" height="450"></canvas>
+    <div class="row"><span class="meta" style="flex:1">${esc(it.name)}${it.pages > 1 ? ` · p.${it.pageNo}/${it.pages}` : ''}</span><button class="btn s" data-act="del" title="Retirer">✕</button></div>
+    <div class="row"><select data-act="car">${carrierOptions(it.carrier)}</select></div>
+    <div class="row"><span class="tag ${tagCls}">${tagTxt}</span>${it.note ? `<span class="tag warn">${esc(it.note)}</span>` : ''}</div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" data-act="inc"${it.include ? ' checked' : ''}> Imprimer</label>
+      <span style="flex:1"></span>
+      <button class="btn s" data-act="rot" title="Pivoter">↻</button>
+      <button class="btn s" data-act="edit">Ajuster</button>
+    </div>`;
+  const cv = el.querySelector('canvas');
+  drawLabel(cv.getContext('2d'), it.view, it.crop, it.rot, cv.width, cv.height, settings.margin * cv.width / OUT_W);
+  el.querySelector('[data-act=car]').onchange = e => {
+    it.carrier = e.target.value;
+    if (it.source !== 'manual') applyCrop(it);
+    renderCard(it);
+  };
+  el.querySelector('[data-act=inc]').onchange = e => { it.include = e.target.checked; el.classList.toggle('off', !it.include); updateBar(); };
+  el.querySelector('[data-act=rot]').onclick = () => { it.rot = (it.rot + 90) % 360; it.source = 'manual'; renderCard(it); };
+  el.querySelector('[data-act=edit]').onclick = () => openEditor(it);
+  el.querySelector('[data-act=del]').onclick = () => removeItem(it);
+  updateBar();
+}
+function removeItem(it) {
+  const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
+  const el = document.querySelector(`.card[data-id="${it.id}"]`); if (el) el.remove();
+  if (it.view) it.view.width = it.view.height = 0;
+  updateBar();
+}
+function rerenderAll() { items.forEach(renderCard); }
+
+/* ---------- Éditeur ---------- */
+const ed = { it: null, crop: null, rot: 0, carrier: 'autre' };
+function openEditor(it) {
+  ed.it = it; ed.crop = it.crop.slice(); ed.rot = it.rot; ed.carrier = it.carrier;
+  $('mTitle').textContent = 'Ajuster le recadrage';
+  $('mCarrier').innerHTML = carrierOptions(it.carrier);
+  const mc = $('mCanvas'); mc.width = it.view.width; mc.height = it.view.height;
+  mc.getContext('2d').drawImage(it.view, 0, 0);
+  $('modal').classList.add('on');
+  fitStage(); edDraw();
+}
+function fitStage() {
+  if (!ed.it) return;
+  $('stage').style.width = $('stage').style.height = '0px';   // mesurer l'espace libre sans l'ancienne taille
+  const body = document.querySelector('.mbody');
+  const side = document.querySelector('.side');
+  const narrow = window.innerWidth <= 700;
+  const availW = body.clientWidth - 24 - (narrow ? 0 : side.offsetWidth + 14);
+  const availH = body.clientHeight - 24 - (narrow ? side.offsetHeight + 14 : 0);
+  const ar = ed.it.view.width / ed.it.view.height;
+  let w = availW, h = w / ar; if (h > availH) { h = availH; w = h * ar; }
+  const st = $('stage'); st.style.width = Math.max(80, Math.floor(w)) + 'px'; st.style.height = Math.max(80, Math.floor(h)) + 'px';
+}
+function edDraw() {
+  const c = ed.crop, el = $('crop');
+  el.style.left = c[0] * 100 + '%'; el.style.top = c[1] * 100 + '%';
+  el.style.width = (c[2] - c[0]) * 100 + '%'; el.style.height = (c[3] - c[1]) * 100 + '%';
+  const pv = $('mPrev');
+  drawLabel(pv.getContext('2d'), ed.it.view, ed.crop, ed.rot, pv.width, pv.height, settings.margin * pv.width / OUT_W);
+}
+(function setupDrag() {
+  const st = $('stage');
+  let drag = null;
+  st.addEventListener('pointerdown', e => {
+    const h = e.target.dataset && e.target.dataset.h;
+    const inCrop = e.target.closest('#crop');
+    if (!h && !inCrop) return;
+    e.preventDefault();
+    st.setPointerCapture(e.pointerId);
+    drag = { h: h || 'move', sx: e.clientX, sy: e.clientY, c0: ed.crop.slice() };
+  });
+  st.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const r = st.getBoundingClientRect();
+    const dx = (e.clientX - drag.sx) / r.width, dy = (e.clientY - drag.sy) / r.height;
+    const c = drag.c0.slice(), m = 0.02;
+    if (drag.h === 'move') {
+      const w = c[2] - c[0], hh = c[3] - c[1];
+      c[0] = clamp(c[0] + dx, 0, 1 - w); c[1] = clamp(c[1] + dy, 0, 1 - hh); c[2] = c[0] + w; c[3] = c[1] + hh;
+    } else {
+      if (drag.h.includes('w')) c[0] = clamp(c[0] + dx, 0, c[2] - m);
+      if (drag.h.includes('e')) c[2] = clamp(c[2] + dx, c[0] + m, 1);
+      if (drag.h.includes('n')) c[1] = clamp(c[1] + dy, 0, c[3] - m);
+      if (drag.h.includes('s')) c[3] = clamp(c[3] + dy, c[1] + m, 1);
+    }
+    ed.crop = c; edDraw();
+  });
+  const end = () => { drag = null; };
+  st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+})();
+$('mAuto').onclick = () => { ed.crop = ed.it.ana.box.slice(); ed.rot = autoRotation(ed.it, ed.crop); edDraw(); };
+$('mRot').onclick = () => { ed.rot = (ed.rot + 90) % 360; edDraw(); };
+$('mCarrier').onchange = e => { ed.carrier = e.target.value; };
+$('mCancel').onclick = closeEditor;
+$('mOk').onclick = () => {
+  const it = ed.it;
+  it.crop = ed.crop.slice(); it.rot = ed.rot; it.carrier = ed.carrier; it.source = 'manual';
+  it.include = true; it.note = '';
+  if ($('mMem').checked) {
+    presets[it.carrier] = { crop: it.crop.slice(), rot: it.rot, aspect: it.aspect, at: Date.now() };
+    lsSet(LS_PRESETS, presets);
+    for (const o of items) if (o !== it && !o.error && o.carrier === it.carrier && o.source !== 'manual') { applyCrop(o); if (o.source === 'preset') o.include = true; }
+    renderPresets();
+  }
+  closeEditor(); rerenderAll();
+};
+function closeEditor() { $('modal').classList.remove('on'); ed.it = null; }
+window.addEventListener('resize', () => { if (ed.it) { fitStage(); edDraw(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ed.it) closeEditor(); });
+
+/* ---------- Génération du PDF 100×150 ---------- */
+async function buildPdf() {
+  const sel = items.filter(i => i.include && !i.error);
+  if (!sel.length) throw new Error('Aucune étiquette sélectionnée');
+  const out = await PDFDocument.create();
+  out.setTitle('Étiquettes 100x150'); out.setCreator('KoaLabel ' + APP_VERSION);
+  const libDocs = new Map();
+  const pw = OUT_W * MM, ph = OUT_H * MM, m = settings.margin * MM;
+  for (const it of sel) {
+    const page = out.addPage([pw, ph]);
+    try {
+      let ld = libDocs.get(it.src);
+      if (!ld) { ld = await PDFDocument.load(sources[it.src].bytes, { ignoreEncryption: true }); libDocs.set(it.src, ld); }
+      const sp = ld.getPage(it.pageNo - 1);
+      const vw = it.vpObj.width, vh = it.vpObj.height;
+      const pts = [[it.crop[0], it.crop[1]], [it.crop[2], it.crop[1]], [it.crop[0], it.crop[3]], [it.crop[2], it.crop[3]]]
+        .map(([x, y]) => it.vpObj.convertToPdfPoint(x * vw, y * vh));
+      const left = Math.min(...pts.map(p => p[0])), right = Math.max(...pts.map(p => p[0]));
+      const bottom = Math.min(...pts.map(p => p[1])), top = Math.max(...pts.map(p => p[1]));
+      const emb = await out.embedPage(sp, { left, bottom, right, top });
+      const R = ((it.rotate || 0) + it.rot) % 360;
+      const w = right - left, h = top - bottom, odd = R % 180 !== 0;
+      const dw = odd ? h : w, dh = odd ? w : h;
+      const s = Math.min((pw - 2 * m) / dw, (ph - 2 * m) / dh);
+      const X = (pw - dw * s) / 2, Y = (ph - dh * s) / 2;
+      const pos = { 0: [X, Y], 90: [X, Y + w * s], 180: [X + w * s, Y + h * s], 270: [X + h * s, Y] }[R];
+      page.drawPage(emb, { x: pos[0], y: pos[1], xScale: s, yScale: s, rotate: degrees(-R) });
+    } catch (e) {
+      console.warn('Vectoriel impossible, passage en image 300 dpi', e);
+      await rasterInto(out, page, it, pw, ph, m);
+    }
+  }
+  return await out.save();
+}
+// Secours : rendu image 300 dpi (PDF protégé ou atypique)
+async function rasterInto(out, page, it, pw, ph, m) {
+  const doc = await pdfjsLib.getDocument({ data: sources[it.src].bytes.slice(), isEvalSupported: false }).promise;
+  const pg = await doc.getPage(it.pageNo);
+  const vp = pg.getViewport({ scale: 300 / 72 });
+  const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  await pg.render({ canvasContext: x, viewport: vp }).promise;
+  const o = document.createElement('canvas'); o.width = Math.round(OUT_W / 25.4 * 300); o.height = Math.round(OUT_H / 25.4 * 300);
+  drawLabel(o.getContext('2d'), c, it.crop, it.rot, o.width, o.height, settings.margin / 25.4 * 300);
+  const png = await new Promise(r => o.toBlob(r, 'image/png'));
+  const img = await out.embedPng(new Uint8Array(await png.arrayBuffer()));
+  page.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+  c.width = c.height = 0; await doc.destroy();
+}
+function fileName() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `etiquettes-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.pdf`;
+}
+async function exportPdf(mode) {
+  if (busy) return;
+  const win = mode === 'print' ? window.open('', '_blank') : null;
+  busy = true; updateBar(); setStatus('Création du PDF…');
+  try {
+    const bytes = await buildPdf();
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    if (win) { win.location.href = url; }
+    else {
+      const a = document.createElement('a'); a.href = url; a.download = fileName();
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+    const n = items.filter(i => i.include && !i.error).length;
+    setStatus(`PDF prêt : ${n} étiquette${n > 1 ? 's' : ''} 100 × 150 mm. Imprime en taille réelle (100 %).`);
+  } catch (e) {
+    console.error(e); if (win) win.close();
+    setStatus('Échec : ' + ((e && e.message) || e));
+  }
+  busy = false; updateBar();
+}
+
+/* ---------- Interface ---------- */
+function setStatus(t) { $('status').textContent = t; }
+function updateBar() {
+  const n = items.filter(i => i.include && !i.error).length;
+  $('count').textContent = `${n} étiquette${n > 1 ? 's' : ''}`;
+  $('dl').disabled = $('print').disabled = busy || !n;
+  $('clear').disabled = busy || !items.length;
+}
+function renderPresets() {
+  const keys = Object.keys(presets);
+  const el = $('presets');
+  if (!keys.length) { el.textContent = 'aucun'; return; }
+  el.innerHTML = keys.map(k => `${esc(CARRIERS[k] || k)} <button class="btn s" data-del="${esc(k)}">Oublier</button>`).join('<br>');
+  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    delete presets[b.dataset.del]; lsSet(LS_PRESETS, presets); renderPresets();
+    for (const o of items) if (!o.error && o.source === 'preset') applyCrop(o);
+    rerenderAll();
+  });
+}
+
+const drop = $('drop'), fileIn = $('file');
+drop.onclick = () => fileIn.click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileIn.click(); } };
+fileIn.onchange = () => { addFiles(fileIn.files); fileIn.value = ''; };
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+$('dl').onclick = () => exportPdf('download');
+$('print').onclick = () => exportPdf('print');
+$('clear').onclick = () => { [...items].forEach(removeItem); sources.length = 0; setStatus(''); };
+
+$('margin').value = settings.margin;
+$('marginV').textContent = settings.margin + ' mm';
+$('margin').oninput = e => { settings.margin = +e.target.value; $('marginV').textContent = settings.margin + ' mm'; lsSet(LS_SETTINGS, settings); rerenderAll(); };
+$('ver').textContent = 'v' + APP_VERSION;
+renderPresets(); updateBar();
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
+}
+
+window.KoaLabel = { items, buildPdf, addFiles, presets: () => presets, version: APP_VERSION };
+</script>
+</body>
+</html>
