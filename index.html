@@ -17,16 +17,16 @@
   --txt:#eef2ff; --mut:#93a0c4; --yel:#ffcb05; --red:#e3350d; --ok:#2ecc71; --warn:#ff9f1a;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Raleway,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
-body{min-height:100vh;padding-bottom:24px}
+html,body{overscroll-behavior-y:none;margin:0;background:var(--bg);color:var(--txt);font-family:Raleway,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+body{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 button,select,input{font:inherit;color:inherit}
-header{padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
+header{flex:none;width:100%;padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:10px;background:var(--yel);display:grid;place-items:center;flex:none}
 .logo svg{width:28px;height:28px}
 h1{font-weight:900;font-size:26px;margin:0;letter-spacing:.5px}
 h1 span{color:var(--yel)}
-main{max-width:1100px;margin:0 auto;padding:0 16px}
-.drop{margin:12px 0;border:2px dashed var(--line);border-radius:16px;padding:26px 16px;text-align:center;background:var(--panel);cursor:pointer;transition:.15s}
+main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.drop{flex:none;margin:12px 0 0;border:2px dashed var(--line);border-radius:16px;padding:20px 16px;text-align:center;background:var(--panel);cursor:pointer;transition:.15s}
 .drop.over{border-color:var(--yel);background:var(--panel2)}
 .drop b{font-weight:900;font-size:18px;display:block}
 .btn{border:0;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--panel2);border:1px solid var(--line)}
@@ -34,12 +34,14 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .btn.y{background:var(--yel);color:#00071a;border-color:var(--yel)}
 .btn.r{background:var(--red);border-color:var(--red)}
 .btn.s{padding:7px 11px;font-size:13px;border-radius:10px}
-.status{color:var(--mut);font-size:14px;min-height:20px;margin:6px 2px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,340px));justify-content:center;gap:14px;margin-top:8px}
-.card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.status{flex:none;color:var(--mut);font-size:14px;margin:6px 2px}
+.status:empty{margin:0}
+.grid{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:10px;overflow-y:auto;overscroll-behavior:contain}
+.grid.multi .card{width:min(100%,300px)}
+.card{flex:none;width:100%;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .card.off{opacity:.5}
 .card.err{border-color:var(--red)}
-.prev{width:100%;aspect-ratio:100/150;background:#fff;border-radius:6px;display:block;box-shadow:0 0 0 1px #0003}
+.prev{display:block;width:100%;aspect-ratio:100/150;background:#fff;border-radius:6px;box-shadow:0 0 0 1px #0003}
 .meta{font-size:12px;color:var(--mut);word-break:break-all}
 .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .row select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:13px;flex:1;min-width:0}
@@ -64,7 +66,7 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .hbtns{margin-left:auto;display:flex;gap:8px}
 .badge[hidden]{display:none}
 .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--yel);color:#00071a;font-size:11px;font-weight:900;display:grid;place-items:center;padding:0 5px}
-.hlist{flex:1;overflow:auto;padding:12px;width:100%;max-width:640px;margin:0 auto}
+.hlist{flex:1;overflow:auto;overscroll-behavior:contain;padding:12px;width:100%;max-width:640px;margin:0 auto}
 .hrow{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;margin-bottom:8px}
 .hrow img{width:48px;height:72px;border-radius:4px;background:#fff;flex:none;object-fit:contain}
 .hinfo{flex:1;min-width:0}
@@ -84,7 +86,7 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .set input[type=range]{accent-color:var(--yel);flex:1;max-width:220px}
 .hint{font-size:13px;color:var(--mut);line-height:1.5}
 .hint b{color:var(--txt)}
-footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
+.ver{color:var(--mut);font-size:12px;text-align:center;padding-top:12px}
 .preset{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 /* Éditeur */
 .modal{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column}
@@ -108,7 +110,6 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
   .mbody{flex-direction:column}
   .side{width:100%;flex-direction:row;align-items:center}
   .side canvas{width:70px}
-  .grid{grid-template-columns:minmax(0,320px)}
 }
 </style>
 </head>
@@ -129,8 +130,6 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
   </div>
   <div class="status" id="status"></div>
   <div class="grid" id="grid"></div>
-
-  <footer>KoaLabel <span id="ver"></span></footer>
 </main>
 
 <div class="sheet" id="settings">
@@ -138,6 +137,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
     <div class="shead"><b>Réglages</b><button class="btn s" id="closeSet" aria-label="Fermer">✕</button></div>
     <div class="line"><span>Marge</span><input type="range" id="margin" min="0" max="6" step="0.5"><b id="marginV"></b></div>
     <div class="line"><span>Recadrages mémorisés</span><span id="presets" class="hint"></span></div>
+    <div class="ver">KoaLabel <span id="ver"></span></div>
   </div>
 </div>
 
@@ -173,7 +173,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.2';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -611,7 +611,9 @@ function actionsHtml(ready) {
     : `<button class="pbtn" data-act="dl"${dis}>${I_DL}Télécharger</button>`;
 }
 
+function syncGrid() { $('grid').classList.toggle('multi', items.length > 1); }
 function renderCard(it) {
+  syncGrid();
   let el = document.querySelector(`.card[data-id="${it.id}"]`);
   if (!el) { el = document.createElement('div'); el.className = 'card'; el.dataset.id = it.id; $('grid').appendChild(el); }
   if (it.error) {
@@ -644,12 +646,31 @@ function renderCard(it) {
   el.querySelector('[data-act=rot]').onclick = () => { it.rot = (it.rot + 90) % 360; it.source = 'manual'; update(it); };
   el.querySelector('[data-act=edit]').onclick = () => openEditor(it);
   el.querySelector('[data-act=del]').onclick = () => removeItem(it);
+  fitSingle();
 }
+// Une seule étiquette : l'aperçu prend la place disponible, sans faire défiler la page
+function fitSingle() {
+  const grid = $('grid'), cards = grid.querySelectorAll('.card');
+  cards.forEach(c => { c.style.width = ''; const p = c.querySelector('.prev'); if (p) p.style.width = p.style.height = ''; });
+  if (cards.length !== 1) return;
+  const card = cards[0], cv = card.querySelector('.prev');
+  if (!cv) return;
+  const cs = getComputedStyle(card);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+  const other = card.offsetHeight - cv.offsetHeight;
+  const availH = grid.clientHeight - other - 2;
+  const maxW = Math.min(grid.clientWidth, 340) - padX;
+  const h = Math.max(120, Math.min(availH, maxW * 1.5)), w = h / 1.5;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  card.style.width = (w + padX) + 'px';
+}
+window.addEventListener('resize', fitSingle);
 function removeItem(it) {
   const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
   const el = document.querySelector(`.card[data-id="${it.id}"]`); if (el) el.remove();
   if (it.view) it.view.width = it.view.height = 0;
   it.gen = (it.gen || 0) + 1;   // annule une conversion en cours
+  syncGrid(); fitSingle();
 }
 function rerenderAll() { items.forEach(renderCard); }
 
@@ -901,7 +922,7 @@ twoTap($('histClear'), 'Confirmer ?', async () => {
 });
 
 /* ---------- Interface ---------- */
-function setStatus(t) { $('status').textContent = t; }
+function setStatus(t) { $('status').textContent = t; fitSingle(); }
 function renderPresets() {
   const keys = Object.keys(presets);
   const el = $('presets');
