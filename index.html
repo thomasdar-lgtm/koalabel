@@ -18,7 +18,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Raleway,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
-body{min-height:100vh;padding-bottom:120px}
+body{min-height:100vh;padding-bottom:24px}
 button,select,input{font:inherit;color:inherit}
 header{padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:10px;background:var(--yel);display:grid;place-items:center;flex:none}
@@ -35,7 +35,7 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .btn.r{background:var(--red);border-color:var(--red)}
 .btn.s{padding:7px 11px;font-size:13px;border-radius:10px}
 .status{color:var(--mut);font-size:14px;min-height:20px;margin:6px 2px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,340px));justify-content:center;gap:14px;margin-top:8px}
 .card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .card.off{opacity:.5}
 .card.err{border-color:var(--red)}
@@ -50,20 +50,29 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .tag.warn{color:var(--warn);border-color:#ff9f1a55}
 .chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none}
 .chk input{width:18px;height:18px;accent-color:var(--yel)}
-.bar{position:fixed;left:0;right:0;bottom:0;padding:0 12px calc(12px + env(safe-area-inset-bottom));pointer-events:none;transition:transform .25s ease,opacity .25s ease}
-.bar.hide{transform:translateY(120%);opacity:0}
-.bar .in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:8px;box-shadow:0 10px 30px #000a}
-.bar .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:56px;height:48px;padding:0 6px;line-height:1}
-.bar .cnt b{font-weight:900;font-size:22px;color:var(--yel)}
-.bar .cnt span{font-size:11px;color:var(--mut);margin-top:3px}
-.ib{width:48px;height:48px;flex:none;border-radius:14px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0;color:var(--txt);transition:background .15s,color .15s}
+.ib{width:48px;height:48px;flex:none;border-radius:14px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0;color:var(--txt);transition:background .15s,color .15s;font-size:18px}
 .ib svg{width:22px;height:22px}
+.ib.sm{width:40px;height:40px;border-radius:12px}
+.ib.sm svg{width:18px;height:18px}
 .ib:disabled{opacity:.4;cursor:default}
-.ib.arm{background:var(--red);border-color:var(--red);color:#fff;width:auto;padding:0 12px;font-weight:700;font-size:14px}
-.pbtn{flex:1;height:48px;border:0;border-radius:14px;background:var(--yel);color:#00071a;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.ib.arm{background:var(--red);border-color:var(--red);color:#fff;width:auto;padding:0 12px;font-weight:700;font-size:13px}
+.pbtn{flex:1;height:52px;border:0;border-radius:14px;background:var(--yel);color:#00071a;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
 .pbtn svg{width:22px;height:22px}
 .pbtn:disabled{opacity:.45;cursor:default}
-.gear{margin-left:auto;width:42px;height:42px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0}
+.acts{display:flex;gap:8px}
+.tools{gap:6px}
+.hbtns{margin-left:auto;display:flex;gap:8px}
+.badge[hidden]{display:none}
+.badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--yel);color:#00071a;font-size:11px;font-weight:900;display:grid;place-items:center;padding:0 5px}
+.hlist{flex:1;overflow:auto;padding:12px;width:100%;max-width:640px;margin:0 auto}
+.hrow{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;margin-bottom:8px}
+.hrow img{width:48px;height:72px;border-radius:4px;background:#fff;flex:none;object-fit:contain}
+.hinfo{flex:1;min-width:0}
+.hinfo b{display:block;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hinfo span{font-size:12px;color:var(--mut)}
+.hempty{color:var(--mut);text-align:center;margin-top:30vh}
+.drop.busy{opacity:.5;pointer-events:none}
+.gear{position:relative;width:42px;height:42px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0}
 .gear svg{width:22px;height:22px}
 .sheet{position:fixed;inset:0;background:#000a;z-index:40;display:none;align-items:flex-start;justify-content:center;padding:16px}
 .sheet.on{display:flex}
@@ -99,9 +108,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
   .mbody{flex-direction:column}
   .side{width:100%;flex-direction:row;align-items:center}
   .side canvas{width:70px}
-  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .card{padding:8px}
-  .card .btn.s{padding:6px 9px}
+  .grid{grid-template-columns:minmax(0,320px)}
 }
 </style>
 </head>
@@ -109,12 +116,15 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
 <header>
   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#00071a" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 7v5M10.5 7v5M13 7v5M16 7v5M8 16h8"/></svg></div>
   <h1>Koa<span>Label</span></h1>
+  <div class="hbtns">
+  <button class="gear" id="openHist" title="Historique" aria-label="Historique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="badge" id="histN" hidden></span></button>
   <button class="gear" id="openSet" title="Réglages" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
 </header>
 
 <main>
   <div class="drop" id="drop" tabindex="0" role="button">
-    <b>Ajouter des bordereaux</b>
+    <b>Ajouter un bordereau</b>
     <input type="file" id="file" accept="application/pdf,.pdf" multiple hidden>
   </div>
   <div class="status" id="status"></div>
@@ -131,13 +141,10 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
   </div>
 </div>
 
-<div class="bar hide">
-  <div class="in">
-    <div class="cnt"><b id="count">0</b><span id="countL">étiquette</span></div>
-    <button class="ib" id="clear" disabled title="Vider" aria-label="Vider"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>
-    <button class="ib" id="dl" disabled title="Télécharger" aria-label="Télécharger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></button>
-    <button class="pbtn" id="print" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Imprimer</button>
-  </div>
+<div class="modal" id="hist">
+  <div class="mhead"><b>Historique</b><button class="btn s" id="closeHist" aria-label="Fermer">✕</button></div>
+  <div class="hlist" id="hlist"></div>
+  <div class="mfoot"><span class="sp"></span><button class="btn s" id="histClear">Tout vider</button></div>
 </div>
 
 <div class="modal" id="modal">
@@ -166,7 +173,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.1.0';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -488,11 +495,13 @@ async function imageToPdf(file) {
 async function addFiles(fileList) {
   const files = [...fileList];
   if (!files.length || busy) return;
-  busy = true; updateBar();
+  busy = true; $('drop').classList.add('busy');
+  // un import remplace l'écran ; les précédents restent dans l'historique
+  [...items].forEach(removeItem); sources.length = 0;
   let k = 0;
   for (const f of files) {
     k++;
-    setStatus(`Analyse ${k}/${files.length} — ${f.name}`);
+    setStatus(files.length > 1 ? `Conversion ${k}/${files.length}…` : 'Conversion…');
     try {
       const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
       if (!isPdf && !(f.type || '').startsWith('image/')) throw new Error('Format non pris en charge');
@@ -501,20 +510,18 @@ async function addFiles(fileList) {
       const doc = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
       let creator = '';
       try { const md = await doc.getMetadata(); creator = (md.info && (md.info.Creator || '')) || ''; } catch (e) { }
-      for (let p = 1; p <= doc.numPages; p++) {
-        await processPage(doc, p, si, f.name, creator);
-      }
+      const made = [];
+      for (let p = 1; p <= doc.numPages; p++) made.push(await processPage(doc, p, si, f.name, creator));
       await doc.destroy();
+      for (const it of made) await update(it);
     } catch (e) {
       console.error(e);
       const it = { id: ++uid, error: (e && e.message) || 'Erreur', name: f.name, include: false };
       items.push(it); renderCard(it);
     }
   }
-  busy = false;
-  const n = items.filter(i => !i.error).length;
+  busy = false; $('drop').classList.remove('busy');
   setStatus('');
-  updateBar();
 }
 
 async function processPage(doc, p, si, name, creator) {
@@ -565,6 +572,7 @@ async function processPage(doc, p, si, name, creator) {
   page.cleanup();
   items.push(it);
   renderCard(it);
+  return it;
 }
 
 /* ---------- Dessin d'une étiquette (aperçu / secours raster) ---------- */
@@ -589,6 +597,20 @@ function carrierOptions(sel) {
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
+const I_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
+const I_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>';
+const I_CROP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg>';
+const I_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+let CAN_SHARE = false;
+try { CAN_SHARE = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] })); } catch (e) { }
+
+function actionsHtml(ready) {
+  const dis = ready ? '' : ' disabled';
+  return CAN_SHARE
+    ? `<button class="pbtn" data-act="share"${dis}>${I_SHARE}Partager</button><button class="ib" data-act="dl" title="Télécharger" aria-label="Télécharger"${dis}>${I_DL}</button>`
+    : `<button class="pbtn" data-act="dl"${dis}>${I_DL}Télécharger</button>`;
+}
+
 function renderCard(it) {
   let el = document.querySelector(`.card[data-id="${it.id}"]`);
   if (!el) { el = document.createElement('div'); el.className = 'card'; el.dataset.id = it.id; $('grid').appendChild(el); }
@@ -597,40 +619,37 @@ function renderCard(it) {
     el.innerHTML = `<div class="meta"><b>${esc(it.name)}</b></div><div class="tag warn">Illisible : ${esc(it.error)}</div>
       <button class="btn s" data-act="del">Retirer</button>`;
     el.querySelector('[data-act=del]').onclick = () => removeItem(it);
-    updateBar(); return;
+    return;
   }
-  const tagCls = { preset: 'preset', auto: 'auto', manual: 'manual' }[it.source];
-  const tagTxt = { preset: 'Mémorisé', auto: 'Auto', manual: 'Ajusté' }[it.source];
-  el.classList.toggle('off', !it.include);
   el.innerHTML = `
     <canvas class="prev" width="300" height="450"></canvas>
-    <div class="row"><span class="meta" style="flex:1">${esc(it.name)}${it.pages > 1 ? ` · p.${it.pageNo}/${it.pages}` : ''}</span><button class="btn s" data-act="del" title="Retirer">✕</button></div>
-    <div class="row"><select data-act="car">${carrierOptions(it.carrier)}</select></div>
-    <div class="row"><span class="tag ${tagCls}">${tagTxt}</span>${it.note ? `<span class="tag warn">${esc(it.note)}</span>` : ''}</div>
-    <div class="row">
-      <label class="chk"><input type="checkbox" data-act="inc"${it.include ? ' checked' : ''}> Imprimer</label>
-      <span style="flex:1"></span>
-      <button class="btn s" data-act="rot" title="Pivoter">↻</button>
-      <button class="btn s" data-act="edit">Ajuster</button>
+    <div class="acts">${actionsHtml(!!it.blob)}</div>
+    ${it.note ? `<div class="row"><span class="tag warn">${esc(it.note)}</span></div>` : ''}
+    <div class="row tools">
+      <select data-act="car">${carrierOptions(it.carrier)}</select>
+      <button class="ib sm" data-act="rot" title="Pivoter" aria-label="Pivoter">↻</button>
+      <button class="ib sm" data-act="edit" title="Ajuster" aria-label="Ajuster">${I_CROP}</button>
+      <button class="ib sm" data-act="del" title="Retirer" aria-label="Retirer">✕</button>
     </div>`;
   const cv = el.querySelector('canvas');
   drawLabel(cv.getContext('2d'), it.view, it.crop, it.rot, cv.width, cv.height, settings.margin * cv.width / OUT_W);
+  const sh = el.querySelector('[data-act=share]');
+  if (sh) sh.onclick = () => it.blob && shareBlob(it.blob, it.fname);
+  el.querySelector('[data-act=dl]').onclick = () => it.blob && downloadBlob(it.blob, it.fname);
   el.querySelector('[data-act=car]').onchange = e => {
     it.carrier = e.target.value;
     if (it.source !== 'manual') applyCrop(it);
-    renderCard(it);
+    update(it);
   };
-  el.querySelector('[data-act=inc]').onchange = e => { it.include = e.target.checked; el.classList.toggle('off', !it.include); updateBar(); };
-  el.querySelector('[data-act=rot]').onclick = () => { it.rot = (it.rot + 90) % 360; it.source = 'manual'; renderCard(it); };
+  el.querySelector('[data-act=rot]').onclick = () => { it.rot = (it.rot + 90) % 360; it.source = 'manual'; update(it); };
   el.querySelector('[data-act=edit]').onclick = () => openEditor(it);
   el.querySelector('[data-act=del]').onclick = () => removeItem(it);
-  updateBar();
 }
 function removeItem(it) {
   const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
   const el = document.querySelector(`.card[data-id="${it.id}"]`); if (el) el.remove();
   if (it.view) it.view.width = it.view.height = 0;
-  updateBar();
+  it.gen = (it.gen || 0) + 1;   // annule une conversion en cours
 }
 function rerenderAll() { items.forEach(renderCard); }
 
@@ -705,18 +724,17 @@ $('mOk').onclick = () => {
   if ($('mMem').checked) {
     presets[it.carrier] = { crop: it.crop.slice(), rot: it.rot, aspect: it.aspect, at: Date.now() };
     lsSet(LS_PRESETS, presets);
-    for (const o of items) if (o !== it && !o.error && o.carrier === it.carrier && o.source !== 'manual') { applyCrop(o); if (o.source === 'preset') o.include = true; }
+    for (const o of items) if (o !== it && !o.error && o.carrier === it.carrier && o.source !== 'manual') { applyCrop(o); if (o.source === 'preset') { o.include = true; o.note = ''; } update(o); }
     renderPresets();
   }
-  closeEditor(); rerenderAll();
+  closeEditor(); update(it);
 };
 function closeEditor() { $('modal').classList.remove('on'); ed.it = null; }
 window.addEventListener('resize', () => { if (ed.it) { fitStage(); edDraw(); } });
-document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (ed.it) closeEditor(); else $('settings').classList.remove('on'); });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (ed.it) closeEditor(); else { $('settings').classList.remove('on'); $('hist').classList.remove('on'); } });
 
 /* ---------- Génération du PDF 100×150 ---------- */
-async function buildPdf() {
-  const sel = items.filter(i => i.include && !i.error);
+async function buildPdf(sel = items.filter(i => i.include && !i.error)) {
   if (!sel.length) throw new Error('Aucune étiquette sélectionnée');
   const out = await PDFDocument.create();
   out.setTitle('Étiquettes 100x150'); out.setCreator('KoaLabel ' + APP_VERSION);
@@ -763,42 +781,127 @@ async function rasterInto(out, page, it, pw, ph, m) {
   page.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
   c.width = c.height = 0; await doc.destroy();
 }
-function fileName() {
-  const d = new Date(), p = n => String(n).padStart(2, '0');
-  return `etiquettes-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.pdf`;
+/* ---------- Étiquette prête : PDF + historique ---------- */
+const CARRIER_SLUG = { mondialrelay: 'mondial-relay', chronopost: 'chronopost', colissimo: 'colissimo', vinted: 'vinted', autre: 'etiquette' };
+function stamp(t) {
+  const d = new Date(t), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
-async function exportPdf(mode) {
-  if (busy) return;
-  const win = mode === 'print' ? window.open('', '_blank') : null;
-  busy = true; updateBar(); setStatus('Création du PDF…');
+async function update(it) {
+  if (it.error) return;
+  const g = it.gen = (it.gen || 0) + 1;
+  it.blob = null; renderCard(it);
   try {
-    const bytes = await buildPdf();
-    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-    if (win) { win.location.href = url; }
-    else {
-      const a = document.createElement('a'); a.href = url; a.download = fileName();
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 120000);
-    setStatus('');
+    const bytes = await buildPdf([it]);
+    if (g !== it.gen) return;
+    it.blob = new Blob([bytes], { type: 'application/pdf' });
+    if (!it.created) it.created = Date.now();
+    it.fname = `${CARRIER_SLUG[it.carrier] || 'etiquette'}-${stamp(it.created)}.pdf`;
+    renderCard(it);
+    if (it.include) await saveHistory(it);
   } catch (e) {
-    console.error(e); if (win) win.close();
-    setStatus('Échec : ' + ((e && e.message) || e));
+    console.error(e);
+    if (g === it.gen) setStatus('Échec : ' + ((e && e.message) || e));
   }
-  busy = false; updateBar();
 }
+async function saveHistory(it) {
+  if (!it.hid) it.hid = it.created + '-' + it.id;
+  const c = document.createElement('canvas'); c.width = 120; c.height = 180;
+  drawLabel(c.getContext('2d'), it.view, it.crop, it.rot, c.width, c.height, settings.margin * c.width / OUT_W);
+  try {
+    await dbPut({ id: it.hid, created: it.created, carrier: it.carrier, name: it.fname, pdf: it.blob, thumb: c.toDataURL('image/jpeg', 0.8) });
+    persistOnce();
+  } catch (e) { console.warn('Historique indisponible', e); }
+  refreshHistCount();
+}
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function shareBlob(blob, name) {
+  try { await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })] }); }
+  catch (e) { if (!e || e.name !== 'AbortError') { console.warn(e); downloadBlob(blob, name); } }
+}
+
+/* ---------- Base locale (IndexedDB) ---------- */
+let dbP = null;
+function idb() {
+  if (!dbP) dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('koalabel', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('labels', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => { dbP = null; rej(r.error); };
+  });
+  return dbP;
+}
+async function dbTx(mode, fn) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('labels', mode), req = fn(tx.objectStore('labels'));
+    let out; if (req) req.onsuccess = () => { out = req.result; };
+    tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+  });
+}
+const dbPut = rec => dbTx('readwrite', st => st.put(rec));
+const dbDel = id => dbTx('readwrite', st => st.delete(id));
+const dbClear = () => dbTx('readwrite', st => st.clear());
+const dbAll = () => dbTx('readonly', st => st.getAll());
+const dbCount = () => dbTx('readonly', st => st.count());
+let persisted = false;
+function persistOnce() {
+  if (persisted) return; persisted = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
+}
+
+/* ---------- Historique ---------- */
+function twoTap(btn, label, action) {
+  btn.onclick = () => {
+    if (btn.classList.contains('arm')) { clearTimeout(btn._t); action(); return; }
+    const html = btn.innerHTML;
+    btn.classList.add('arm'); btn.textContent = label;
+    btn._t = setTimeout(() => { btn.classList.remove('arm'); btn.innerHTML = html; }, 3000);
+  };
+}
+async function refreshHistCount() {
+  let n = 0; try { n = await dbCount(); } catch (e) { }
+  const b = $('histN'); b.hidden = !n; b.textContent = n > 99 ? '99+' : n;
+}
+function fmtDate(t) {
+  const d = new Date(t), p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} · ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function renderHist() {
+  const list = $('hlist');
+  let recs = [];
+  try { recs = await dbAll(); } catch (e) { }
+  recs.sort((a, b) => b.created - a.created);
+  $('histClear').disabled = !recs.length;
+  if (!recs.length) { list.innerHTML = '<div class="hempty">Aucune étiquette</div>'; return; }
+  list.innerHTML = '';
+  for (const r of recs) {
+    const row = document.createElement('div'); row.className = 'hrow';
+    row.innerHTML = `<img alt="" src="${r.thumb}"><div class="hinfo"><b>${esc(CARRIERS[r.carrier] || 'Étiquette')}</b><span>${fmtDate(r.created)}</span></div>
+      ${CAN_SHARE ? `<button class="ib sm" data-a="share" aria-label="Partager">${I_SHARE}</button>` : ''}
+      <button class="ib sm" data-a="dl" aria-label="Télécharger">${I_DL}</button>
+      <button class="ib sm" data-a="del" aria-label="Supprimer">${I_DEL}</button>`;
+    const sh = row.querySelector('[data-a=share]'); if (sh) sh.onclick = () => shareBlob(r.pdf, r.name);
+    row.querySelector('[data-a=dl]').onclick = () => downloadBlob(r.pdf, r.name);
+    twoTap(row.querySelector('[data-a=del]'), 'Suppr. ?', async () => { try { await dbDel(r.id); } catch (e) { } renderHist(); refreshHistCount(); });
+    list.appendChild(row);
+  }
+}
+$('openHist').onclick = () => { $('hist').classList.add('on'); renderHist(); };
+$('closeHist').onclick = () => $('hist').classList.remove('on');
+twoTap($('histClear'), 'Confirmer ?', async () => {
+  try { await dbClear(); } catch (e) { }
+  $('histClear').classList.remove('arm'); $('histClear').textContent = 'Tout vider';
+  renderHist(); refreshHistCount();
+});
 
 /* ---------- Interface ---------- */
 function setStatus(t) { $('status').textContent = t; }
-function updateBar() {
-  const n = items.filter(i => i.include && !i.error).length;
-  $('count').textContent = n;
-  $('countL').textContent = n > 1 ? 'étiquettes' : 'étiquette';
-  $('dl').disabled = $('print').disabled = busy || !n;
-  $('clear').disabled = busy || !items.length;
-  document.querySelector('.bar').classList.toggle('hide', !items.length);
-  if (!items.length) disarmClear();
-}
 function renderPresets() {
   const keys = Object.keys(presets);
   const el = $('presets');
@@ -806,8 +909,7 @@ function renderPresets() {
   el.innerHTML = keys.map(k => `<div class="preset">${esc(CARRIERS[k] || k)} <button class="btn s" data-del="${esc(k)}">Oublier</button></div>`).join('');
   el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     delete presets[b.dataset.del]; lsSet(LS_PRESETS, presets); renderPresets();
-    for (const o of items) if (!o.error && o.source === 'preset') applyCrop(o);
-    rerenderAll();
+    for (const o of items) if (!o.error && o.source === 'preset') { applyCrop(o); update(o); }
   });
 }
 
@@ -824,34 +926,21 @@ drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
 
-$('dl').onclick = () => exportPdf('download');
-$('print').onclick = () => exportPdf('print');
-// Vider : 2e appui de confirmation (3 s)
-let clearTimer = null;
-const TRASH = $('clear').innerHTML;
-function disarmClear() { clearTimeout(clearTimer); const b = $('clear'); b.classList.remove('arm'); b.innerHTML = TRASH; }
-$('clear').onclick = () => {
-  const b = $('clear');
-  if (!b.classList.contains('arm')) {
-    b.classList.add('arm'); b.textContent = 'Vider ?';
-    clearTimer = setTimeout(disarmClear, 3000);
-    return;
-  }
-  disarmClear();
-  [...items].forEach(removeItem); sources.length = 0; setStatus('');
-};
-
 $('margin').value = settings.margin;
 $('marginV').textContent = settings.margin + ' mm';
-$('margin').oninput = e => { settings.margin = +e.target.value; $('marginV').textContent = settings.margin + ' mm'; lsSet(LS_SETTINGS, settings); rerenderAll(); };
+let marginT = null;
+$('margin').oninput = e => {
+  settings.margin = +e.target.value; $('marginV').textContent = settings.margin + ' mm'; lsSet(LS_SETTINGS, settings);
+  rerenderAll(); clearTimeout(marginT); marginT = setTimeout(() => items.forEach(update), 400);
+};
 $('ver').textContent = 'v' + APP_VERSION;
-renderPresets(); updateBar();
+renderPresets(); refreshHistCount();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
 }
 
-window.KoaLabel = { items, buildPdf, addFiles, presets: () => presets, version: APP_VERSION };
+window.KoaLabel = { items, buildPdf, addFiles, presets: () => presets, version: APP_VERSION, dbAll, idle: () => !busy && items.every(i => i.error || i.blob) };
 </script>
 </body>
 </html>
