@@ -18,7 +18,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Raleway,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
-body{min-height:100vh;padding-bottom:110px}
+body{min-height:100vh;padding-bottom:120px}
 button,select,input{font:inherit;color:inherit}
 header{padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:10px;background:var(--yel);display:grid;place-items:center;flex:none}
@@ -50,9 +50,19 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .tag.warn{color:var(--warn);border-color:#ff9f1a55}
 .chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none}
 .chk input{width:18px;height:18px;accent-color:var(--yel)}
-.bar{position:fixed;left:0;right:0;bottom:0;background:#000b24ee;backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
-.bar .in{max-width:1100px;margin:0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bar .cnt{font-weight:900;margin-right:auto}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:0 12px calc(12px + env(safe-area-inset-bottom));pointer-events:none;transition:transform .25s ease,opacity .25s ease}
+.bar.hide{transform:translateY(120%);opacity:0}
+.bar .in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:8px;box-shadow:0 10px 30px #000a}
+.bar .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:56px;height:48px;padding:0 6px;line-height:1}
+.bar .cnt b{font-weight:900;font-size:22px;color:var(--yel)}
+.bar .cnt span{font-size:11px;color:var(--mut);margin-top:3px}
+.ib{width:48px;height:48px;flex:none;border-radius:14px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0;color:var(--txt);transition:background .15s,color .15s}
+.ib svg{width:22px;height:22px}
+.ib:disabled{opacity:.4;cursor:default}
+.ib.arm{background:var(--red);border-color:var(--red);color:#fff;width:auto;padding:0 12px;font-weight:700;font-size:14px}
+.pbtn{flex:1;height:48px;border:0;border-radius:14px;background:var(--yel);color:#00071a;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.pbtn svg{width:22px;height:22px}
+.pbtn:disabled{opacity:.45;cursor:default}
 .gear{margin-left:auto;width:42px;height:42px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0}
 .gear svg{width:22px;height:22px}
 .sheet{position:fixed;inset:0;background:#000a;z-index:40;display:none;align-items:flex-start;justify-content:center;padding:16px}
@@ -121,12 +131,12 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
   </div>
 </div>
 
-<div class="bar">
+<div class="bar hide">
   <div class="in">
-    <span class="cnt" id="count">0 étiquette</span>
-    <button class="btn s" id="clear" disabled>Vider</button>
-    <button class="btn" id="dl" disabled>Télécharger</button>
-    <button class="btn y" id="print" disabled>Imprimer</button>
+    <div class="cnt"><b id="count">0</b><span id="countL">étiquette</span></div>
+    <button class="ib" id="clear" disabled title="Vider" aria-label="Vider"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>
+    <button class="ib" id="dl" disabled title="Télécharger" aria-label="Télécharger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></button>
+    <button class="pbtn" id="print" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>Imprimer</button>
   </div>
 </div>
 
@@ -156,7 +166,7 @@ footer{color:var(--mut);font-size:12px;text-align:center;margin:24px 0}
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -782,9 +792,12 @@ async function exportPdf(mode) {
 function setStatus(t) { $('status').textContent = t; }
 function updateBar() {
   const n = items.filter(i => i.include && !i.error).length;
-  $('count').textContent = `${n} étiquette${n > 1 ? 's' : ''}`;
+  $('count').textContent = n;
+  $('countL').textContent = n > 1 ? 'étiquettes' : 'étiquette';
   $('dl').disabled = $('print').disabled = busy || !n;
   $('clear').disabled = busy || !items.length;
+  document.querySelector('.bar').classList.toggle('hide', !items.length);
+  if (!items.length) disarmClear();
 }
 function renderPresets() {
   const keys = Object.keys(presets);
@@ -813,7 +826,20 @@ document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer 
 
 $('dl').onclick = () => exportPdf('download');
 $('print').onclick = () => exportPdf('print');
-$('clear').onclick = () => { [...items].forEach(removeItem); sources.length = 0; setStatus(''); };
+// Vider : 2e appui de confirmation (3 s)
+let clearTimer = null;
+const TRASH = $('clear').innerHTML;
+function disarmClear() { clearTimeout(clearTimer); const b = $('clear'); b.classList.remove('arm'); b.innerHTML = TRASH; }
+$('clear').onclick = () => {
+  const b = $('clear');
+  if (!b.classList.contains('arm')) {
+    b.classList.add('arm'); b.textContent = 'Vider ?';
+    clearTimer = setTimeout(disarmClear, 3000);
+    return;
+  }
+  disarmClear();
+  [...items].forEach(removeItem); sources.length = 0; setStatus('');
+};
 
 $('margin').value = settings.margin;
 $('marginV').textContent = settings.margin + ' mm';
