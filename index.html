@@ -71,7 +71,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 .hrow img{width:48px;height:72px;border-radius:4px;background:#fff;flex:none;object-fit:contain}
 .hinfo{flex:1;min-width:0}
 .hinfo b{display:block;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hinfo span{font-size:12px;color:var(--mut)}
+.hinfo span{display:block;font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hempty{color:var(--mut);text-align:center;margin-top:30vh}
 .drop.busy{opacity:.5;pointer-events:none}
 .gear{position:relative;width:42px;height:42px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;padding:0}
@@ -177,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.1.4';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -482,6 +482,52 @@ function applyCrop(it) {
   }
 }
 
+/* ---------- Nom du destinataire ---------- */
+// raw : [{ s, x, y, a }] — texte, position PDF, angle (degrés)
+function extractName(raw) {
+  const clean = s => s.replace(/\s+/g, ' ').trim();
+  const ok = s => {
+    s = clean(s);
+    if (s.length < 3 || s.length > 50 || /\d/.test(s) || !/[a-zà-ÿ]/i.test(s)) return false;
+    if (/^(nom|destinataire|receiver|sender|exp[ée]diteur|consigne|locker|chrono relais)\b/i.test(s)) return false;
+    return /^[a-zà-ÿ' .-]+$/i.test(s);
+  };
+  // repère local de chaque élément (lecture dans son propre sens)
+  const loc = t => {
+    const r = t.a * Math.PI / 180;
+    return { along: t.x * Math.cos(r) + t.y * Math.sin(r), perp: -t.x * Math.sin(r) + t.y * Math.cos(r) };
+  };
+  const pts = raw.filter(t => t.s && t.s.trim()).map(t => Object.assign({ s: clean(t.s) }, t, loc(t)));
+  const sameAngle = (a, b) => Math.abs(((a.a - b.a) % 360 + 540) % 360 - 180) < 3;
+  // mots de la même ligne, à droite d'un repère
+  const rightOf = L => pts.filter(t => t !== L && sameAngle(t, L) && Math.abs(t.perp - L.perp) < 4 && t.along > L.along && t.along < L.along + 250)
+    .sort((p, q) => p.along - q.along).map(t => t.s).join(' ');
+  // première ligne sous un repère
+  const below = L => {
+    const c = pts.filter(t => t !== L && sameAngle(t, L) && t.perp < L.perp - 2 && t.perp > L.perp - 22 && t.along > L.along - 8 && t.along < L.along + 220);
+    // lignes de la plus proche à la plus éloignée ; on garde celle alignée sous le repère
+    const tops = [...new Set(c.map(t => Math.round(t.perp)))].sort((p, q) => q - p);
+    for (const top of tops) {
+      const line = c.filter(t => Math.abs(t.perp - top) < 3).sort((p, q) => p.along - q.along);
+      if (line[0].along <= L.along + 15) return line.map(t => t.s).join(' ');
+    }
+    return '';
+  };
+  const tries = [];
+  for (const t of pts) {   // 1) Chronopost : « A l'attention de … »
+    const m = t.s.match(/^a l['’]attention de\s+(.+)$/i);
+    if (m) tries.push(m[1]);
+  }
+  for (const t of pts) if (/^nom$/i.test(t.s)) tries.push(rightOf(t));                       // 2) fiche Mondial Relay
+  for (const t of pts) if (/^destinataire\s*:$/i.test(t.s)) tries.push(rightOf(t));           // 3) fiche Chronopost
+  for (const t of pts) if (/^(receiver|destinataire)$/i.test(t.s)) tries.push(below(t));     // 4) bloc de l'étiquette
+  const hit = tries.map(clean).find(ok);
+  if (!hit) return '';
+  // « lecomte » → « Lecomte », « DUPONT » → « Dupont »
+  return hit.split(' ').map(w => (w === w.toLowerCase() || w === w.toUpperCase())
+    ? w.toLowerCase().replace(/(^|[-'])([a-zà-ÿ])/g, (m, p, c) => p + c.toUpperCase()) : w).join(' ');
+}
+
 /* ---------- Chargement ---------- */
 async function imageToPdf(file) {
   const bmp = await createImageBitmap(file);
@@ -533,7 +579,7 @@ async function processPage(doc, p, si, name, creator) {
   const vp1 = page.getViewport({ scale: 1 });
   // texte + orientation
   let text = '';
-  const textItems = [];
+  const textItems = [], raw = [];
   try {
     const tc = await page.getTextContent();
     for (const t of tc.items) {
@@ -542,6 +588,7 @@ async function processPage(doc, p, si, name, creator) {
       const s = t.str.trim(); if (!s) continue;
       const [a, b, , , e, f] = t.transform;
       const ang = Math.atan2(b, a) * 180 / Math.PI;
+      raw.push({ s, x: e, y: f, a: ang });
       const [vx, vy] = vp1.convertToViewportPoint(e, f);
       textItems.push({ vx, vy, len: s.length, angle: norm360(ang - page.rotate) });
     }
@@ -568,7 +615,7 @@ async function processPage(doc, p, si, name, creator) {
     vp1: { width: vp1.width, height: vp1.height, transform: vp1.transform },
     vpObj: vp1, rotate: page.rotate, aspect: Math.round(vp1.width / vp1.height * 1000) / 1000,
     textItems, ana, view: cV,
-    carrier: detectCarrier(text, creator), crop: null, rot: 0, source: 'auto', include: true
+    carrier: detectCarrier(text, creator), who: extractName(raw), crop: null, rot: 0, source: 'auto', include: true
   };
   applyCrop(it);
   it.include = ana.hasBarcode || it.source === 'preset';
@@ -835,6 +882,12 @@ async function rasterInto(out, page, it, pw, ph, m) {
 }
 /* ---------- Étiquette prête : PDF + historique ---------- */
 const CARRIER_SLUG = { mondialrelay: 'mondial-relay', chronopost: 'chronopost', colissimo: 'colissimo', vinted: 'vinted', autre: 'etiquette' };
+// « Chloé Becker - 15-10.pdf », ou transporteur + horodatage si le nom est introuvable
+function fileNameFor(it) {
+  const d = new Date(it.created), p = n => String(n).padStart(2, '0');
+  const who = (it.who || '').replace(/[\\/:*?"<>|]/g, '').trim();
+  return who ? `${who} - ${p(d.getDate())}-${p(d.getMonth() + 1)}.pdf` : `${CARRIER_SLUG[it.carrier] || 'etiquette'}-${stamp(it.created)}.pdf`;
+}
 function stamp(t) {
   const d = new Date(t), p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
@@ -848,7 +901,7 @@ async function update(it) {
     if (g !== it.gen) return;
     it.blob = new Blob([bytes], { type: 'application/pdf' });
     if (!it.created) it.created = Date.now();
-    it.fname = `${CARRIER_SLUG[it.carrier] || 'etiquette'}-${stamp(it.created)}.pdf`;
+    it.fname = fileNameFor(it);
     renderCard(it);
     if (it.include) await saveHistory(it);
   } catch (e) {
@@ -861,7 +914,7 @@ async function saveHistory(it) {
   const c = document.createElement('canvas'); c.width = 120; c.height = 180;
   drawLabel(c.getContext('2d'), it.view, it.crop, it.rot, c.width, c.height, settings.margin * c.width / OUT_W);
   try {
-    await dbPut({ id: it.hid, created: it.created, carrier: it.carrier, name: it.fname, pdf: it.blob, thumb: c.toDataURL('image/jpeg', 0.8) });
+    await dbPut({ id: it.hid, created: it.created, carrier: it.carrier, who: it.who || '', name: it.fname, pdf: it.blob, thumb: c.toDataURL('image/jpeg', 0.8) });
     persistOnce();
   } catch (e) { console.warn('Historique indisponible', e); }
   refreshHistCount();
@@ -934,7 +987,7 @@ async function renderHist() {
   list.innerHTML = '';
   for (const r of recs) {
     const row = document.createElement('div'); row.className = 'hrow';
-    row.innerHTML = `<img alt="" src="${r.thumb}"><div class="hinfo"><b>${esc(CARRIERS[r.carrier] || 'Étiquette')}</b><span>${fmtDate(r.created)}</span></div>
+    row.innerHTML = `<img alt="" src="${r.thumb}"><div class="hinfo"><b>${esc(r.who || CARRIERS[r.carrier] || 'Étiquette')}</b><span>${r.who ? esc(CARRIERS[r.carrier] || '') + ' · ' : ''}${fmtDate(r.created)}</span></div>
       ${CAN_SHARE ? `<button class="ib sm" data-a="share" aria-label="Partager">${I_SHARE}</button>` : ''}
       <button class="ib sm" data-a="dl" aria-label="Télécharger">${I_DL}</button>
       <button class="ib sm" data-a="del" aria-label="Supprimer">${I_DEL}</button>`;
