@@ -177,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1.4';
+const APP_VERSION = '1.1.5';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -609,12 +609,15 @@ async function processPage(doc, p, si, name, creator) {
   cV.width = Math.round(cA.width * sV); cV.height = Math.round(cA.height * sV);
   const xV = cV.getContext('2d'); xV.imageSmoothingQuality = 'high'; xV.drawImage(cA, 0, 0, cV.width, cV.height);
   cA.width = cA.height = 0;
+  // image figée : contrairement à un canvas, Android ne l'efface pas quand l'appli passe en arrière-plan
+  let view = cV;
+  try { view = await createImageBitmap(cV); cV.width = cV.height = 0; } catch (e) { }
 
   const it = {
     id: ++uid, src: si, name, pageNo: p, pages: doc.numPages,
     vp1: { width: vp1.width, height: vp1.height, transform: vp1.transform },
     vpObj: vp1, rotate: page.rotate, aspect: Math.round(vp1.width / vp1.height * 1000) / 1000,
-    textItems, ana, view: cV,
+    textItems, ana, view,
     carrier: detectCarrier(text, creator), who: extractName(raw), crop: null, rot: 0, source: 'auto', include: true
   };
   applyCrop(it);
@@ -701,9 +704,11 @@ function renderCard(it) {
   if (it.blob) paintPreview(it, cv);
 }
 // Aperçu net : rendu du PDF final à la résolution réelle de l'écran
+// Android peut interrompre le dessin quand l'appli passe en arrière-plan : on ne dessine
+// qu'au premier plan, on jette tout rendu touché par une mise en veille, et on redessine au retour.
 async function paintPreview(it, cv) {
-  const g = it.gen, cssW = cv.clientWidth;
-  if (!cssW) return;
+  const g = it.gen, cssW = cv.clientWidth, seq = it.paintSeq = (it.paintSeq || 0) + 1;
+  if (!cssW || document.hidden) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   try {
     if (!it.outDoc || it.outGen !== g) {
@@ -719,7 +724,8 @@ async function paintPreview(it, cv) {
     off.width = Math.round(vp.width); off.height = Math.round(vp.height);
     const x = off.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, off.width, off.height);
     await page.render({ canvasContext: x, viewport: vp }).promise;
-    if (g !== it.gen || !cv.isConnected) return;
+    if (g !== it.gen || seq !== it.paintSeq || !cv.isConnected) return;
+    if (document.hidden || (x.isContextLost && x.isContextLost())) return;   // rendu incomplet : refait au retour
     cv.width = off.width; cv.height = off.height;
     cv.getContext('2d').drawImage(off, 0, 0);
   } catch (e) { console.warn('Aperçu', e); }
@@ -741,11 +747,12 @@ function fitSingle() {
   card.style.width = (w + padX) + 'px';
 }
 let resizeT = null;
-window.addEventListener('resize', () => { fitSingle(); clearTimeout(resizeT); resizeT = setTimeout(rerenderAll, 250); });
+window.addEventListener('resize', () => { if (document.hidden) return; fitSingle(); clearTimeout(resizeT); resizeT = setTimeout(rerenderAll, 250); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(resizeT); resizeT = setTimeout(rerenderAll, 150); } });
 function removeItem(it) {
   const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
   const el = document.querySelector(`.card[data-id="${it.id}"]`); if (el) el.remove();
-  if (it.view) it.view.width = it.view.height = 0;
+  if (it.view) { if (it.view.close) it.view.close(); else it.view.width = it.view.height = 0; }
   it.gen = (it.gen || 0) + 1;   // annule une conversion en cours
   if (it.outDoc) { it.outDoc.destroy(); it.outDoc = null; }
   syncGrid(); fitSingle();
