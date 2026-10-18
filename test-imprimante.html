@@ -58,8 +58,11 @@ select{font:inherit;background:var(--panel2);color:var(--txt);border:1px solid v
 
   <div class="step">
     <b>5. Vitesse</b>
-    <p>La dernière étiquette KoaLabel, envoyée plus vite. Fais D d'abord. Si E ne sort rien : éteins puis rallume l'imprimante.</p>
-    <button id="bD" disabled>D. Avec accusé (sûr)</button>
+    <p>La dernière étiquette KoaLabel. Un seul test à la fois : attends que l'étiquette sorte (les boutons restent grisés pendant l'envoi). Chronomètre de l'appui jusqu'à la sortie. Si rien ne sort : éteins puis rallume l'imprimante.</p>
+    <button id="bF" disabled>F. Attente 4 ms</button>
+    <button id="bG" disabled>G. Attente 0 ms</button>
+    <button id="bH" disabled>H. Zones blanches sautées, 8 ms</button>
+    <button id="bD" class="sec" disabled>D. Avec accusé (lent)</button>
     <button id="bE" class="sec" disabled>E. Sans accusé, 8 ms</button>
   </div>
 
@@ -173,7 +176,7 @@ function setState(ok, txt) {
   const s = $('state');
   s.textContent = txt || (ok ? `connectée (${device && device.name || ''})` : 'non connectée');
   s.className = ok ? 'ok' : 'ko';
-  $('bInfo').disabled = $('bPrint').disabled = $('bFull').disabled = $('bLast').disabled = $('bD').disabled = $('bE').disabled = !ok;
+  $('bInfo').disabled = $('bPrint').disabled = $('bFull').disabled = $('bLast').disabled = $('bD').disabled = $('bE').disabled = $('bF').disabled = $('bG').disabled = $('bH').disabled = !ok;
 }
 
 let chunk = 180;
@@ -246,13 +249,37 @@ $('bPrint').onclick = async () => {
 
 /* ---------- Pleine page 100 × 150 mm à 203 dpi = 800 × 1200 points ---------- */
 const DW = 800, DH = 1200;
-function canvasToTspl(c) {
+function canvasBits(c) {
   const x = c.getContext('2d'), d = x.getImageData(0, 0, DW, DH).data, wb = DW / 8;
   const bits = new Uint8Array(wb * DH).fill(0xff);
   for (let yy = 0; yy < DH; yy++) for (let xx = 0; xx < DW; xx++) {
     const i = (yy * DW + xx) * 4, lum = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
     if (lum < 160) bits[yy * wb + (xx >> 3)] &= ~(0x80 >> (xx & 7));
   }
+  return bits;
+}
+// Zones blanches sautées : tranches de 24 lignes, et dans chaque tranche un BITMAP par zone de colonnes contenant du noir
+function bitsToBands(bits) {
+  const wb = DW / 8, TH = 24, parts = [enc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n')];
+  let n = 0;
+  for (let y0 = 0; y0 < DH; y0 += TH) {
+    const h = Math.min(TH, DH - y0), used = new Uint8Array(wb);
+    for (let y = y0; y < y0 + h; y++) for (let k = 0; k < wb; k++) if (bits[y * wb + k] !== 0xff) used[k] = 1;
+    for (let k = 0; k < wb; ) {
+      if (!used[k]) { k++; continue; }
+      let e = k;
+      for (let j = k + 1; j < wb; j++) { if (used[j]) e = j; else if (j - e > 1) break; }
+      const w = e - k + 1, out = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) out.set(bits.subarray((y0 + y) * wb + k, (y0 + y) * wb + e + 1), y * w);
+      parts.push(enc(`BITMAP ${k * 8},${y0},${w},${h},0,`), out, enc('\r\n'));
+      n++; k = e + 1;
+    }
+  }
+  parts.push(enc('PRINT 1\r\n'));
+  return { job: concat(...parts), n };
+}
+function canvasToTspl(c) {
+  const bits = canvasBits(c), wb = DW / 8;
   return concat(enc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n'), enc(`BITMAP 0,0,${wb},${DH},0,`), bits, enc('\r\nPRINT 1\r\n'));
 }
 async function sendTimed(job, label) {
@@ -348,8 +375,42 @@ async function lastLabelJob() {
   await doc.destroy();
   return canvasToTspl(c);
 }
+// Verrou : un seul envoi à la fois
+let busy = false;
+const speedBtns = ['bD', 'bE', 'bF', 'bG', 'bH'];
+async function guarded(fn) {
+  if (busy) { log('Envoi déjà en cours, attends la fin.'); return; }
+  busy = true; speedBtns.forEach(b => $(b).disabled = true);
+  try { await fn(); } finally { busy = false; speedBtns.forEach(b => $(b).disabled = !writer); }
+}
+// Envoi sans accusé, paquets de `size`, attente `wait` ms entre paquets
+async function fastSend(job, size, wait, label) {
+  const t0 = performance.now();
+  log(`→ ${label} : ${job.length} octets, paquets de ${size}, attente ${wait} ms`);
+  for (let i = 0; i < job.length; i += size) {
+    await writer.writeValueWithoutResponse(job.slice(i, i + size));
+    if (wait) await sleep(wait);
+  }
+  log(`  envoyé en ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  log('Note : temps chronométré jusqu\'à la sortie ? étiquette entière et nette ?');
+}
+$('bF').onclick = () => guarded(async () => {
+  try { await fastSend(await lastLabelJob(), 180, 4, 'F'); }
+  catch (e) { log(`ERREUR F : ${e.name} — ${e.message}`); }
+});
+$('bG').onclick = () => guarded(async () => {
+  try { await fastSend(await lastLabelJob(), 180, 0, 'G'); }
+  catch (e) { log(`ERREUR G : ${e.name} — ${e.message}`); }
+});
+$('bH').onclick = () => guarded(async () => {
+  try {
+    const { job, n } = bitsToBands(canvasBits(await renderLast()));
+    log(`  ${n} zone(s) envoyée(s), ${Math.round(job.length * 100 / (DW / 8 * DH))} % de la taille pleine page`);
+    await fastSend(job, 180, 8, 'H');
+  } catch (e) { log(`ERREUR H : ${e.name} — ${e.message}`); }
+});
 // D : chaque paquet attend la confirmation de l'imprimante avant le suivant
-$('bD').onclick = async () => {
+$('bD').onclick = () => guarded(async () => {
   try {
     if (!writer.properties.write) { log('ERREUR : ce canal n\'accepte pas l\'envoi avec accusé.'); return; }
     const job = await lastLabelJob();
@@ -368,9 +429,9 @@ $('bD').onclick = async () => {
     log(`  envoyé : ${sent} paquets de ${size} octets en ${((performance.now() - t0) / 1000).toFixed(1)} s`);
     log('Note : étiquette sortie ? entière et nette ?');
   } catch (e) { log(`ERREUR D : ${e.name} — ${e.message}`); }
-};
+});
 // E : sans accusé, attente réduite à 8 ms entre paquets
-$('bE').onclick = async () => {
+$('bE').onclick = () => guarded(async () => {
   try {
     const job = await lastLabelJob();
     const size = 180, t0 = performance.now();
@@ -382,7 +443,7 @@ $('bE').onclick = async () => {
     log(`  envoyé en ${((performance.now() - t0) / 1000).toFixed(1)} s`);
     log('Note : étiquette sortie ? entière et nette ? (si rien : éteindre/rallumer l\'imprimante)');
   } catch (e) { log(`ERREUR E : ${e.name} — ${e.message}`); }
-};
+});
 
 $('bCopy').onclick = async () => {
   const t = lines.join('\n');
