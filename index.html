@@ -177,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.2.0';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -654,12 +654,17 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 const I_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
 const I_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>';
 const I_CROP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg>';
+const I_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>';
 const I_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+const CAN_PRINT = !!navigator.bluetooth;
 let CAN_SHARE = false;
 try { CAN_SHARE = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] })); } catch (e) { }
 
 function actionsHtml(ready) {
   const dis = ready ? '' : ' disabled';
+  if (CAN_PRINT) return `<button class="pbtn" data-act="print"${dis}>${I_PRINT}Imprimer</button>`
+    + (CAN_SHARE ? `<button class="ib" data-act="share" title="Partager" aria-label="Partager"${dis}>${I_SHARE}</button>` : '')
+    + `<button class="ib" data-act="dl" title="Télécharger" aria-label="Télécharger"${dis}>${I_DL}</button>`;
   return CAN_SHARE
     ? `<button class="pbtn" data-act="share"${dis}>${I_SHARE}Partager</button><button class="ib" data-act="dl" title="Télécharger" aria-label="Télécharger"${dis}>${I_DL}</button>`
     : `<button class="pbtn" data-act="dl"${dis}>${I_DL}Télécharger</button>`;
@@ -691,6 +696,8 @@ function renderCard(it) {
   drawLabel(cv.getContext('2d'), it.view, it.crop, it.rot, cv.width, cv.height, settings.margin * cv.width / OUT_W);
   const sh = el.querySelector('[data-act=share]');
   if (sh) sh.onclick = () => it.blob && shareBlob(it.blob, it.fname);
+  const pr = el.querySelector('[data-act=print]');
+  if (pr) pr.onclick = () => it.blob && printBlob(it.blob, pr);
   el.querySelector('[data-act=dl]').onclick = () => it.blob && downloadBlob(it.blob, it.fname);
   el.querySelector('[data-act=car]').onchange = e => {
     it.carrier = e.target.value;
@@ -935,6 +942,61 @@ function downloadBlob(blob, name) {
 async function shareBlob(blob, name) {
   try { await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })] }); }
   catch (e) { if (!e || e.name !== 'AbortError') { console.warn(e); downloadBlob(blob, name); } }
+}
+
+/* ---------- Impression directe : Polono PL80E en Bluetooth (TSPL, 203 dpi) ---------- */
+const BT_SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', BT_CHR = '49535343-1e4d-4bd9-ba61-23c647249616';
+const PR_W = 800, PR_H = 1200, PR_PKT = 180;   // 100 × 150 mm ; paquets de 180 octets sans attente (testé : 3 s, net)
+let btDev = null, btChr = null, btKnownTried = false, printing = false;
+const btEnc = t => new TextEncoder().encode(t);
+function btConcat(...parts) {
+  const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+async function btConnect() {
+  if (btChr && btDev && btDev.gatt.connected) return;
+  btChr = null;
+  if (!btDev && !btKnownTried && navigator.bluetooth.getDevices) {
+    btKnownTried = true;   // imprimante déjà autorisée : pas de liste à choisir
+    try { btDev = (await navigator.bluetooth.getDevices()).find(d => /^PL80/i.test(d.name || '')) || null; } catch (e) { btDev = null; }
+  }
+  if (!btDev) btDev = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'PL80' }], optionalServices: [BT_SVC] });
+  if (!btDev.koaListen) { btDev.koaListen = true; btDev.addEventListener('gattserverdisconnected', () => { btChr = null; }); }
+  try {
+    const server = await Promise.race([btDev.gatt.connect(), new Promise((_, rej) => setTimeout(() => rej(new Error('délai dépassé')), 10000))]);
+    btChr = await (await server.getPrimaryService(BT_SVC)).getCharacteristic(BT_CHR);
+  } catch (e) { btDev = null; btChr = null; throw new Error('imprimante introuvable. Allume-la, puis touche à nouveau Imprimer'); }
+}
+async function labelToTspl(blob) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false }).promise;
+  try {
+    const page = await doc.getPage(1), vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(PR_W / vp1.width, PR_H / vp1.height) });
+    const c = document.createElement('canvas'); c.width = PR_W; c.height = PR_H;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, PR_W, PR_H);
+    await page.render({ canvasContext: x, viewport: vp }).promise;
+    const d = x.getImageData(0, 0, PR_W, PR_H).data, wb = PR_W / 8, bits = new Uint8Array(wb * PR_H).fill(0xff);
+    for (let yy = 0; yy < PR_H; yy++) for (let xx = 0; xx < PR_W; xx++) {
+      const i = (yy * PR_W + xx) * 4;
+      if (((d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8) < 160) bits[yy * wb + (xx >> 3)] &= ~(0x80 >> (xx & 7));
+    }
+    return btConcat(btEnc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n'), btEnc(`BITMAP 0,0,${wb},${PR_H},0,`), bits, btEnc('\r\nPRINT 1\r\n'));
+  } finally { doc.destroy(); }
+}
+async function printBlob(blob, btn) {
+  if (printing) return;
+  printing = true;
+  const html = btn.innerHTML; btn.disabled = true; btn.textContent = 'Impression…';
+  try {
+    await btConnect();
+    const job = await labelToTspl(blob);
+    try { for (let i = 0; i < job.length; i += PR_PKT) await btChr.writeValueWithoutResponse(job.slice(i, i + PR_PKT)); }
+    catch (e) { btChr = null; throw new Error('envoi interrompu. Éteins puis rallume l\'imprimante avant de réessayer'); }
+    setStatus('');
+  } catch (e) {
+    if (!e || e.name !== 'NotFoundError') setStatus('Impression : ' + ((e && e.message) || e));
+  } finally { printing = false; btn.disabled = false; btn.innerHTML = html; }
 }
 
 /* ---------- Base locale (IndexedDB) ---------- */
