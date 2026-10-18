@@ -57,7 +57,13 @@ select{font:inherit;background:var(--panel2);color:var(--txt);border:1px solid v
   </div>
 
   <div class="step">
-    <b>5. Rapport</b>
+    <b>5. Vitesse</b>
+    <p>Même étiquette que B, envoyée par le canal « ff02 » de l'imprimante, celui qui sait lui dire quand ralentir.</p>
+    <button id="bFast" disabled>C. Envoi rapide</button>
+  </div>
+
+  <div class="step">
+    <b>6. Rapport</b>
     <p>Copie le rapport et colle-le dans la conversation, avec ce qui est sorti de l'imprimante.</p>
     <button id="bCopy" class="sec">Copier le rapport</button>
   </div>
@@ -90,7 +96,15 @@ const SERVICES = [
   '000018f0-0000-1000-8000-00805f9b34fb'
 ];
 
-let device = null, writers = [], writer = null;
+let device = null, writers = [], writer = null, allChars = {}, fast = null;
+// crédits annoncés par l'imprimante (ff03), suivis en permanence
+const flow = { credit: 0, mtu: 0, notes: 0 };
+function parseFlow(id, u8) {
+  if (id !== 'ff03') return;
+  flow.notes++;
+  if (u8[0] === 0x01 && u8.length >= 2) flow.credit += u8[1];
+  if (u8[0] === 0x02 && u8.length >= 3) flow.mtu = u8[1] | (u8[2] << 8);
+}
 
 log(`Navigateur : ${navigator.userAgent}`);
 if (!navigator.bluetooth) {
@@ -117,12 +131,15 @@ $('bConnect').onclick = async () => {
         const pr = c.properties;
         const flags = ['read', 'write', 'writeWithoutResponse', 'notify', 'indicate'].filter(k => pr[k]);
         log(`  CHAR ${c.uuid} [${flags.join(', ')}]`);
+        allChars[c.uuid.slice(4, 8)] = c;
         if (pr.write || pr.writeWithoutResponse) writers.push(c);
         if (pr.notify || pr.indicate) {
           try {
             await c.startNotifications();
             c.addEventListener('characteristicvaluechanged', ev => {
               const u8 = new Uint8Array(ev.target.value.buffer);
+              parseFlow(c.uuid.slice(4, 8), u8);
+              if (fast && fast.onNote(c.uuid.slice(4, 8), u8)) return;
               log(`  ← ${c.uuid.slice(4, 8)} : ${hex(u8)}  |${ascii(u8)}|`);
             });
           } catch (e) { log(`  (écoute impossible : ${e.message})`); }
@@ -154,7 +171,7 @@ function setState(ok, txt) {
   const s = $('state');
   s.textContent = txt || (ok ? `connectée (${device && device.name || ''})` : 'non connectée');
   s.className = ok ? 'ok' : 'ko';
-  $('bInfo').disabled = $('bPrint').disabled = $('bFull').disabled = $('bLast').disabled = !ok;
+  $('bInfo').disabled = $('bPrint').disabled = $('bFull').disabled = $('bLast').disabled = $('bFast').disabled = !ok;
 }
 
 let chunk = 180;
@@ -299,6 +316,66 @@ $('bLast').onclick = async () => {
     await sendTimed(canvasToTspl(c), 'dernière étiquette');
     log('Note : étiquette entière ? code-barres scanné (appli Vinted / caméra) ?');
   } catch (e) { log(`ERREUR : ${e.message}`); }
+};
+
+async function renderLast() {
+  const rec = await idbLast();
+  log(`Étiquette : ${rec.name}`);
+  await loadPdfjs();
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await rec.pdf.arrayBuffer()), isEvalSupported: false }).promise;
+  const page = await doc.getPage(1);
+  const vp1 = page.getViewport({ scale: 1 });
+  const vp = page.getViewport({ scale: Math.min(DW / vp1.width, DH / vp1.height) });
+  const c = document.createElement('canvas'); c.width = DW; c.height = DH;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, DW, DH);
+  await page.render({ canvasContext: x, viewport: vp }).promise;
+  await doc.destroy();
+  return c;
+}
+/* Canal ff02 avec contrôle de débit par crédits (notifications ff03) :
+   [01, n] = n paquets autorisés en plus ; [02, mtu_lo, mtu_hi] = taille maximale */
+$('bFast').onclick = async () => {
+  const w = allChars['ff02'];
+  if (!w) { log('ERREUR : canal ff02 absent.'); return; }
+  try {
+    const job = canvasToTspl(await renderLast());
+    const st = { raw: [], waiter: null, timeouts: 0, notes0: flow.notes };
+    fast = st;
+    st.onNote = (id, u8) => {
+      if (id !== 'ff03' && id !== 'ff01') return false;
+      if (st.raw.length < 12) st.raw.push(`${id}:${hex(u8)}`);
+      if (st.waiter) { const f = st.waiter; st.waiter = null; f(); }
+      return true;
+    };
+    Object.defineProperty(st, 'credit', { get: () => flow.credit, set: v => { flow.credit = v; } });
+    Object.defineProperty(st, 'mtu', { get: () => flow.mtu });
+    Object.defineProperty(st, 'notes', { get: () => flow.notes });
+    const waitNote = ms => new Promise(r => { st.waiter = r; setTimeout(() => { if (st.waiter === r) { st.waiter = null; r(); } }, ms); });
+    if (!st.credit) await waitNote(600);       // crédits initiaux éventuels
+    const size = st.mtu > 23 ? Math.min(st.mtu - 3, 237) : 237;
+    log(`→ envoi rapide : ${job.length} octets, paquets de ${size}, crédits initiaux ${st.credit}, mtu annoncé ${st.mtu || '?'}`);
+    const t0 = performance.now();
+    let sent = 0;
+    for (let i = 0; i < job.length; i += size) {
+      if (st.notes === 0 && i === 0 && st.credit === 0) st.credit = 4;   // aucune annonce : départ prudent
+      while (st.credit <= 0) {
+        const before = st.notes;
+        await waitNote(1000);
+        if (st.notes === before && st.credit <= 0) {
+          st.timeouts++; st.credit = 1;
+          if (st.notes === 0 && st.timeouts >= 3) throw new Error('le canal ff02 ne renvoie aucun crédit : envoi arrêté');
+        }
+      }
+      st.credit--;
+      await w.writeValueWithoutResponse(job.slice(i, i + size));
+      sent++;
+    }
+    const dt = (performance.now() - t0) / 1000;
+    log(`  envoyé : ${sent} paquets en ${dt.toFixed(1)} s · notifications reçues ${st.notes} · attentes sans réponse ${st.timeouts}`);
+    log(`  premières notifications : ${st.raw.join('  ') || 'aucune'}`);
+    log('Note : étiquette sortie ? entière et nette ?');
+  } catch (e) { log(`ERREUR envoi rapide : ${e.name} — ${e.message}`); }
+  fast = null;
 };
 
 $('bCopy').onclick = async () => {
