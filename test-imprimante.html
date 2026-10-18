@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Test imprimante</title>
+<meta name="theme-color" content="#00071a">
+<style>
+:root{--bg:#00071a;--panel:#0b1530;--panel2:#111d3d;--line:#22305a;--txt:#eef2ff;--mut:#93a0c4;--yel:#ffcb05;--red:#e3350d;--ok:#2ecc71}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overscroll-behavior-y:none}
+main{max-width:560px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-direction:column;gap:12px}
+h1{font-size:22px;font-weight:900;margin:0}
+h1 span{color:var(--yel)}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.step b{font-size:15px}
+.step p{margin:0;font-size:13px;color:var(--mut);line-height:1.45}
+button{font:inherit;font-weight:800;border:0;border-radius:12px;padding:13px 14px;background:var(--yel);color:#00071a;cursor:pointer}
+button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:default}
+select{font:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:8px}
+#state{font-weight:800}
+#state.ok{color:var(--ok)}#state.ko{color:var(--red)}
+#log{background:#000;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;color:#cfd8ff}
+</style>
+</head>
+<body>
+<main>
+  <h1>Test <span>Polono</span></h1>
+
+  <div class="step">
+    <b>1. Connexion</b>
+    <p>Imprimante allumée, à côté du téléphone. Ferme Labelnize avant : l'imprimante n'accepte qu'une connexion à la fois.</p>
+    <button id="bConnect">Connecter l'imprimante</button>
+    <div>État : <span id="state">non connectée</span></div>
+    <select id="sChar" hidden></select>
+  </div>
+
+  <div class="step">
+    <b>2. Identification</b>
+    <p>Demande son modèle et son état à l'imprimante. Rien n'est imprimé.</p>
+    <button id="bInfo" class="sec" disabled>Identifier</button>
+  </div>
+
+  <div class="step">
+    <b>3. Étiquette de test</b>
+    <p>Imprime une seule étiquette avec une ligne de texte et un cadre « KoaLabel ».</p>
+    <button id="bPrint" disabled>Imprimer le test</button>
+  </div>
+
+  <div class="step">
+    <b>4. Rapport</b>
+    <p>Copie le rapport et colle-le dans la conversation, avec ce qui est sorti de l'imprimante.</p>
+    <button id="bCopy" class="sec">Copier le rapport</button>
+  </div>
+
+  <div id="log"></div>
+</main>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const lines = [];
+function log(t) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  lines.push(`${p(d.getMinutes())}:${p(d.getSeconds())} ${t}`);
+  $('log').textContent = lines.join('\n');
+  $('log').scrollTop = $('log').scrollHeight;
+}
+const hex = u8 => [...u8].map(b => b.toString(16).padStart(2, '0')).join(' ');
+const ascii = u8 => [...u8].map(b => b >= 32 && b < 127 ? String.fromCharCode(b) : '.').join('');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Services Bluetooth habituels des imprimantes thermiques
+const SERVICES = [
+  0x18f0, 0xff00, 0xffe0, 0xfee7, 0xae30, 0xfff0, 0xffb0, 0xe0ff, 0xaf30, 0xff10, 0xfe95, 0xae00, 0xabf0, 0xfef0,
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  '0000ff12-0000-1000-8000-00805f9b34fb',
+  '00001101-0000-1000-8000-00805f9b34fb',
+  '000018f0-0000-1000-8000-00805f9b34fb'
+];
+
+let device = null, writers = [], writer = null;
+
+log(`Navigateur : ${navigator.userAgent}`);
+if (!navigator.bluetooth) {
+  log('ERREUR : Bluetooth web indisponible. Ouvre cette page dans Chrome (pas Firefox).');
+  $('bConnect').disabled = true;
+}
+
+$('bConnect').onclick = async () => {
+  try {
+    log('Recherche… choisis l\'imprimante dans la liste (nom en PL80E…).');
+    device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: SERVICES });
+    log(`Appareil choisi : "${device.name || '(sans nom)'}" id=${device.id}`);
+    device.addEventListener('gattserverdisconnected', () => { log('Déconnectée.'); setState(false); });
+    const server = await device.gatt.connect();
+    log('Connexion GATT établie.');
+    const services = await server.getPrimaryServices();
+    log(`${services.length} service(s) accessible(s).`);
+    writers = [];
+    for (const s of services) {
+      log(`SERVICE ${s.uuid}`);
+      let chars = [];
+      try { chars = await s.getCharacteristics(); } catch (e) { log(`  (caractéristiques illisibles : ${e.message})`); }
+      for (const c of chars) {
+        const pr = c.properties;
+        const flags = ['read', 'write', 'writeWithoutResponse', 'notify', 'indicate'].filter(k => pr[k]);
+        log(`  CHAR ${c.uuid} [${flags.join(', ')}]`);
+        if (pr.write || pr.writeWithoutResponse) writers.push(c);
+        if (pr.notify || pr.indicate) {
+          try {
+            await c.startNotifications();
+            c.addEventListener('characteristicvaluechanged', ev => {
+              const u8 = new Uint8Array(ev.target.value.buffer);
+              log(`  ← ${c.uuid.slice(4, 8)} : ${hex(u8)}  |${ascii(u8)}|`);
+            });
+          } catch (e) { log(`  (écoute impossible : ${e.message})`); }
+        }
+        if (pr.read) {
+          try { const v = new Uint8Array((await c.readValue()).buffer); log(`    lu : ${hex(v)} |${ascii(v)}|`); } catch (e) { }
+        }
+      }
+    }
+    if (!writers.length) {
+      log('ERREUR : aucune caractéristique d\'écriture trouvée parmi les services connus.');
+      setState(false, 'connectée, mais aucun canal d\'impression trouvé');
+      return;
+    }
+    const sel = $('sChar');
+    sel.innerHTML = writers.map((c, i) => `<option value="${i}">${c.service.uuid.slice(4, 8)} / ${c.uuid.slice(4, 8)}${c.properties.writeWithoutResponse ? ' (rapide)' : ''}</option>`).join('');
+    sel.hidden = writers.length < 2;
+    sel.onchange = () => { writer = writers[+sel.value]; log(`Canal choisi : ${writer.uuid}`); };
+    writer = writers[0];
+    log(`Canal d'impression : ${writer.uuid}`);
+    setState(true);
+  } catch (e) {
+    log(`ERREUR connexion : ${e.name} — ${e.message}`);
+    setState(false);
+  }
+};
+
+function setState(ok, txt) {
+  const s = $('state');
+  s.textContent = txt || (ok ? `connectée (${device && device.name || ''})` : 'non connectée');
+  s.className = ok ? 'ok' : 'ko';
+  $('bInfo').disabled = $('bPrint').disabled = !ok;
+}
+
+let chunk = 180;
+async function send(bytes, label) {
+  const wnr = writer.properties.writeWithoutResponse;
+  log(`→ ${label} : ${bytes.length} octets, paquets de ${chunk}, ${wnr ? 'sans' : 'avec'} accusé`);
+  for (let i = 0; i < bytes.length; i += chunk) {
+    const part = bytes.slice(i, i + chunk);
+    try {
+      if (wnr) await writer.writeValueWithoutResponse(part); else await writer.writeValueWithResponse(part);
+    } catch (e) {
+      if (chunk > 20) { log(`  paquet refusé (${e.message}), passage à 20 octets`); chunk = 20; i -= chunk; continue; }
+      throw e;
+    }
+    if (wnr) await sleep(chunk > 20 ? 25 : 8);
+  }
+  log(`  envoyé.`);
+}
+const enc = s => new TextEncoder().encode(s);
+function concat(...parts) {
+  const n = parts.reduce((a, p) => a + p.length, 0), out = new Uint8Array(n);
+  let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+$('bInfo').onclick = async () => {
+  try {
+    await send(new Uint8Array([0x1b, 0x21, 0x3f]), 'état (ESC ! ?)');
+    await sleep(800);
+    await send(enc('~!T\r\n'), 'modèle (~!T)');
+    await sleep(800);
+    await send(enc('~!I\r\n'), 'langage (~!I)');
+    await sleep(1500);
+    log('Identification terminée (les réponses éventuelles sont marquées ←).');
+  } catch (e) { log(`ERREUR : ${e.message}`); }
+};
+
+// Image de test : cadre + texte, convertie en points noirs/blancs (TSPL : bit 0 = noir)
+function testBitmap() {
+  const W = 400, H = 160, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#000'; x.lineWidth = 6; x.strokeRect(3, 3, W - 6, H - 6);
+  x.fillStyle = '#000'; x.font = 'bold 52px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('KoaLabel', W / 2, 62);
+  x.font = 'bold 26px sans-serif'; x.fillText('test image', W / 2, 118);
+  const d = x.getImageData(0, 0, W, H).data, wb = W / 8, out = new Uint8Array(wb * H).fill(0xff);
+  for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) {
+    const i = (yy * W + xx) * 4;
+    if (d[i] < 128) out[yy * wb + (xx >> 3)] &= ~(0x80 >> (xx & 7));
+  }
+  return { wb, H, data: out };
+}
+
+$('bPrint').onclick = async () => {
+  try {
+    const bm = testBitmap();
+    const job = concat(
+      enc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n'),
+      enc('TEXT 40,40,"4",0,1,1,"KoaLabel - test texte"\r\n'),
+      enc(`BITMAP 40,140,${bm.wb},${bm.H},0,`), bm.data, enc('\r\n'),
+      enc('PRINT 1\r\n')
+    );
+    await send(job, 'étiquette de test');
+    await sleep(2500);
+    log('Envoi terminé. Note ce qui est sorti : rien / texte seul / texte + cadre / cadre inversé (fond noir) / autre.');
+  } catch (e) { log(`ERREUR impression : ${e.message}`); }
+};
+
+$('bCopy').onclick = async () => {
+  const t = lines.join('\n');
+  try { await navigator.clipboard.writeText(t); log('Rapport copié.'); }
+  catch (e) {
+    const r = document.createRange(); r.selectNodeContents($('log'));
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    log('Copie automatique impossible : le texte est sélectionné, copie-le à la main.');
+  }
+};
+</script>
+</body>
+</html>
