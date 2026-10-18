@@ -49,7 +49,15 @@ select{font:inherit;background:var(--panel2);color:var(--txt);border:1px solid v
   </div>
 
   <div class="step">
-    <b>4. Rapport</b>
+    <b>4. Pleine page</b>
+    <p>A : un cadre au ras des bords et « HAUT ↑ », pour vérifier le cadrage. B : la dernière étiquette de ton historique KoaLabel, pour vérifier que le code-barres se scanne.</p>
+    <label style="font-size:13px;color:var(--mut)">Taille des paquets <select id="sPkt"><option value="180">180 (sûr)</option><option value="500">500 (rapide)</option></select></label>
+    <button id="bFull" disabled>A. Cadre pleine page</button>
+    <button id="bLast" disabled>B. Dernière étiquette KoaLabel</button>
+  </div>
+
+  <div class="step">
+    <b>5. Rapport</b>
     <p>Copie le rapport et colle-le dans la conversation, avec ce qui est sorti de l'imprimante.</p>
     <button id="bCopy" class="sec">Copier le rapport</button>
   </div>
@@ -146,7 +154,7 @@ function setState(ok, txt) {
   const s = $('state');
   s.textContent = txt || (ok ? `connectée (${device && device.name || ''})` : 'non connectée');
   s.className = ok ? 'ok' : 'ko';
-  $('bInfo').disabled = $('bPrint').disabled = !ok;
+  $('bInfo').disabled = $('bPrint').disabled = $('bFull').disabled = $('bLast').disabled = !ok;
 }
 
 let chunk = 180;
@@ -158,7 +166,7 @@ async function send(bytes, label) {
     try {
       if (wnr) await writer.writeValueWithoutResponse(part); else await writer.writeValueWithResponse(part);
     } catch (e) {
-      if (chunk > 20) { log(`  paquet refusé (${e.message}), passage à 20 octets`); chunk = 20; i -= chunk; continue; }
+      if (chunk > 20) { i -= chunk; chunk = chunk > 180 ? 180 : 20; log(`  paquet refusé (${e.message}), passage à ${chunk} octets`); continue; }
       throw e;
     }
     if (wnr) await sleep(chunk > 20 ? 25 : 8);
@@ -215,6 +223,82 @@ $('bPrint').onclick = async () => {
     await sleep(2500);
     log('Envoi terminé. Note ce qui est sorti : rien / texte seul / texte + cadre / cadre inversé (fond noir) / autre.');
   } catch (e) { log(`ERREUR impression : ${e.message}`); }
+};
+
+/* ---------- Pleine page 100 × 150 mm à 203 dpi = 800 × 1200 points ---------- */
+const DW = 800, DH = 1200;
+function canvasToTspl(c) {
+  const x = c.getContext('2d'), d = x.getImageData(0, 0, DW, DH).data, wb = DW / 8;
+  const bits = new Uint8Array(wb * DH).fill(0xff);
+  for (let yy = 0; yy < DH; yy++) for (let xx = 0; xx < DW; xx++) {
+    const i = (yy * DW + xx) * 4, lum = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+    if (lum < 160) bits[yy * wb + (xx >> 3)] &= ~(0x80 >> (xx & 7));
+  }
+  return concat(enc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n'), enc(`BITMAP 0,0,${wb},${DH},0,`), bits, enc('\r\nPRINT 1\r\n'));
+}
+async function sendTimed(job, label) {
+  chunk = +$('sPkt').value;
+  const t0 = performance.now();
+  await send(job, label);
+  log(`  durée d'envoi : ${((performance.now() - t0) / 1000).toFixed(1)} s (paquets de ${chunk})`);
+}
+$('bFull').onclick = async () => {
+  try {
+    const c = document.createElement('canvas'); c.width = DW; c.height = DH;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, DW, DH);
+    x.strokeStyle = '#000'; x.lineWidth = 8; x.strokeRect(4, 4, DW - 8, DH - 8);           // cadre au ras des bords
+    x.lineWidth = 3; x.strokeRect(40, 40, DW - 80, DH - 80);                                // cadre à 5 mm
+    x.fillStyle = '#000'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = 'bold 110px sans-serif'; x.fillText('HAUT ↑', DW / 2, 200);
+    x.font = 'bold 44px sans-serif'; x.fillText('cadre extérieur = bord', DW / 2, DH / 2 - 40);
+    x.fillText('cadre intérieur = 5 mm', DW / 2, DH / 2 + 30);
+    for (let i = 0; i < 40; i++) x.fillRect(150 + i * 12.5, 900, i % 3 ? 4 : 8, 160);      // faux code-barres
+    x.font = 'bold 60px sans-serif'; x.fillText('BAS', DW / 2, DH - 110);
+    await sendTimed(canvasToTspl(c), 'cadre pleine page');
+    log('Note : cadre extérieur entier ou coupé (quel côté) ? « HAUT » sort en premier ou en dernier ?');
+  } catch (e) { log(`ERREUR : ${e.message}`); }
+};
+function idbLast() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('koalabel', 1);
+    r.onupgradeneeded = () => { r.transaction.abort(); rej(new Error('historique vide')); };
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('labels')) { db.close(); return rej(new Error('historique vide')); }
+      const q = db.transaction('labels').objectStore('labels').getAll();
+      q.onsuccess = () => { db.close(); const a = q.result.sort((p, s) => s.created - p.created); a.length ? res(a[0]) : rej(new Error('historique vide')); };
+      q.onerror = () => rej(q.error);
+    };
+  });
+}
+let pdfjsReady = null;
+function loadPdfjs() {
+  if (!pdfjsReady) pdfjsReady = new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = 'lib/pdf.min.js';
+    sc.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js'; res(); };
+    sc.onerror = () => rej(new Error('pdf.js introuvable'));
+    document.head.appendChild(sc);
+  });
+  return pdfjsReady;
+}
+$('bLast').onclick = async () => {
+  try {
+    const rec = await idbLast();
+    log(`Étiquette : ${rec.name}`);
+    await loadPdfjs();
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await rec.pdf.arrayBuffer()), isEvalSupported: false }).promise;
+    const page = await doc.getPage(1);
+    const vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(DW / vp1.width, DH / vp1.height) });
+    const c = document.createElement('canvas'); c.width = DW; c.height = DH;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, DW, DH);
+    await page.render({ canvasContext: x, viewport: vp }).promise;
+    await doc.destroy();
+    await sendTimed(canvasToTspl(c), 'dernière étiquette');
+    log('Note : étiquette entière ? code-barres scanné (appli Vinted / caméra) ?');
+  } catch (e) { log(`ERREUR : ${e.message}`); }
 };
 
 $('bCopy').onclick = async () => {
