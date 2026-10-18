@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_VERSION = '1.1.5';
+const CACHE_VERSION = '1.1.6';
 const CACHE = 'koalabel-' + CACHE_VERSION;
 const CORE = [
   './',
@@ -37,7 +37,8 @@ self.addEventListener('fetch', e => {
   if (shell) {
     e.respondWith(
       fetch(req.url, { cache: 'reload', credentials: 'same-origin' }).then(r => {
-        if (r.ok && (req.mode === 'navigate' || url.pathname.endsWith('/index.html'))) {
+        // seule la page de l'appli est mise en cache (pas une autre page du dépôt)
+        if (r.ok && (url.pathname.endsWith('/index.html') || url.pathname === new URL('./', location).pathname)) {
           const copy = r.clone();
           caches.open(CACHE).then(c => c.put('index.html', copy));
         }
