@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_VERSION = '1.2.2';
+const CACHE_VERSION = '1.2.3';
 const CACHE = 'koalabel-' + CACHE_VERSION;
 const CORE = [
   './',

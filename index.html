@@ -21,8 +21,7 @@ html,body{overscroll-behavior-y:none;margin:0;background:var(--bg);color:var(--t
 body{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 button,select,input{font:inherit;color:inherit}
 header{flex:none;width:100%;padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
-.logo{width:42px;height:42px;border-radius:10px;background:var(--yel);display:grid;place-items:center;flex:none}
-.logo svg{width:28px;height:28px}
+.logo{width:42px;height:42px;border-radius:10px;flex:none;display:block;object-fit:cover}
 h1{font-weight:900;font-size:26px;margin:0;letter-spacing:.5px}
 h1 span{color:var(--yel)}
 main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
@@ -119,7 +118,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 </head>
 <body>
 <header>
-  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#00071a" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8 7v5M10.5 7v5M13 7v5M16 7v5M8 16h8"/></svg></div>
+  <img class="logo" src="icon-192.png" alt="">
   <h1>Koa<span>Label</span></h1><span class="hver" id="ver"></span>
   <div class="hbtns">
   <button class="gear" id="openHist" title="Historique" aria-label="Historique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="badge" id="histN" hidden></span></button>
@@ -177,7 +176,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
