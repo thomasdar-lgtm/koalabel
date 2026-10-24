@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_VERSION = '1.2.1';
+const CACHE_VERSION = '1.2.2';
 const CACHE = 'koalabel-' + CACHE_VERSION;
 const CORE = [
   './',
@@ -7,6 +7,7 @@ const CORE = [
   'manifest.json',
   'icon-192.png',
   'icon-512.png',
+  'icon-maskable-512.png',
   'lib/pdf.min.js',
   'lib/pdf.worker.min.js',
   'lib/pdf-lib.min.js'
