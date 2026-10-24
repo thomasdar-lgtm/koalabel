@@ -16,7 +16,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import java.util.UUID
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -33,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference
 class Printer(private val ctx: Context) {
     private val svcId = UUID.fromString("49535343-fe7d-4ae5-8fa9-9fafd205e455")
     private val chrId = UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616")
+    private val stateId = UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb")
     private val prefs = ctx.getSharedPreferences("printer", Context.MODE_PRIVATE)
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
@@ -42,7 +42,7 @@ class Printer(private val ctx: Context) {
     private var mtu = 23
     @Volatile private var printing = false
     private val events = LinkedBlockingQueue<Pair<String, Int>>()
-    private val notes = ConcurrentLinkedQueue<String>()   // réponses reçues de l'imprimante
+    private val states = LinkedBlockingQueue<Int>()   // octet d'état envoyé par l'imprimante (canal ff01)
     private var listening = false
 
     private val release = Runnable { worker.execute { if (!printing) close() } }
@@ -74,6 +74,7 @@ class Printer(private val ctx: Context) {
             printing = true
             val err = try {
                 connect()
+                checkState()
                 send(job)
                 null
             } catch (e: Exception) {
@@ -88,64 +89,37 @@ class Printer(private val ctx: Context) {
         }
     }
 
-    /** Diagnostic : demande son état à l'imprimante et renvoie ses réponses brutes. */
-    fun probe(done: (String) -> Unit) {
-        main.removeCallbacks(release)
-        worker.execute {
-            printing = true
-            val out = try {
-                connect()
-                listen()
-                val sb = StringBuilder()
-                val cmds = listOf(
-                    "ESC ! ?" to byteArrayOf(0x1b, 0x21, 0x3f),
-                    "ESC ! S" to byteArrayOf(0x1b, 0x21, 0x53),
-                    "~!T" to "~!T\r\n".toByteArray()
-                )
-                for ((label, cmd) in cmds) {
-                    notes.clear()
-                    send(cmd)
-                    Thread.sleep(1200)
-                    val got = generateSequence { notes.poll() }.toList()
-                    sb.append(label).append(" → ").append(if (got.isEmpty()) "rien" else got.joinToString(" | ")).append('\n')
-                }
-                sb.toString().trim()
-            } catch (e: Exception) {
-                close()
-                "erreur : " + (e.message ?: "inconnue")
-            } finally {
-                printing = false
-            }
-            main.removeCallbacks(release)
-            main.postDelayed(release, 8000)
-            main.post { done(out) }
-        }
-    }
-
     private fun note(c: BluetoothGattCharacteristic, v: ByteArray) {
-        val hex = v.joinToString(" ") { "%02x".format(it) }
-        val txt = String(v.map { if (it in 32..126) it.toInt().toChar() else '.' }.toCharArray())
-        notes.offer("${c.uuid.toString().substring(4, 8)}: $hex [$txt]")
+        if (c.uuid == stateId && v.isNotEmpty()) states.offer(v[0].toInt() and 0xff)
     }
 
-    /** Active la réception des réponses sur tous les canaux qui en envoient. */
+    /**
+     * Demande son état à l'imprimante (ESC ! ?) avant d'imprimer.
+     * Codes relevés sur la PL80E : 00 = prête, 01 = capot ouvert, 04 = plus d'étiquettes.
+     * Sans réponse, on imprime quand même.
+     */
     @Suppress("DEPRECATION")
-    private fun listen() {
-        if (listening) return
+    private fun checkState() {
         val g = gatt ?: return
-        val cccd = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        for (s in g.services) for (c in s.characteristics) {
-            val p = c.properties
-            val notify = (p and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
-            if (!notify && (p and BluetoothGattCharacteristic.PROPERTY_INDICATE) == 0) continue
+        if (!listening) {
+            val c = g.services.firstNotNullOfOrNull { it.getCharacteristic(stateId) } ?: return
             g.setCharacteristicNotification(c, true)
-            val d = c.getDescriptor(cccd) ?: continue
-            val v = if (notify) BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE else BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            val d = c.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")) ?: return
+            val v = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
             val ok = if (Build.VERSION.SDK_INT >= 33) g.writeDescriptor(d, v) == BluetoothGatt.GATT_SUCCESS
                      else { d.value = v; g.writeDescriptor(d) }
-            if (ok) runCatching { await("desc", 2000) }
+            if (!ok || runCatching { await("desc", 2000) }.isFailure) return
+            listening = true
         }
-        listening = true
+        states.clear()
+        send(byteArrayOf(0x1b, 0x21, 0x3f))
+        val st = states.poll(800, TimeUnit.MILLISECONDS) ?: return
+        when {
+            (st and 0x01) != 0 -> throw IllegalStateException("capot ouvert. Referme-le, puis touche à nouveau Imprimer")
+            (st and 0x04) != 0 -> throw IllegalStateException("plus d'étiquettes. Remets un rouleau, puis touche à nouveau Imprimer")
+            (st and 0x02) != 0 -> throw IllegalStateException("étiquette coincée. Ouvre le capot pour la dégager")
+            (st and 0x10) != 0 -> throw IllegalStateException("imprimante en pause. Appuie sur son bouton, puis réessaie")
+        }
     }
 
     /** Libère tout de suite l'imprimante (appli en arrière-plan). */

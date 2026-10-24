@@ -82,7 +82,6 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 .set .shead b{font-weight:900;font-size:18px;margin-right:auto}
 .set .line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 .set .line:first-of-type{border-top:0}
-#diagOut{margin:0 0 8px;max-height:30vh;overflow:auto;background:#000;border:1px solid var(--line);border-radius:10px;padding:8px;font:11px/1.4 ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;color:#cfd8ff;user-select:text}
 .set input[type=range]{accent-color:var(--yel);flex:1;max-width:220px}
 .hint{font-size:13px;color:var(--mut);line-height:1.5}
 .hint b{color:var(--txt)}
@@ -141,8 +140,6 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
     <div class="shead"><b>Réglages</b><button class="btn s" id="closeSet" aria-label="Fermer">✕</button></div>
     <div class="line"><span>Marge</span><input type="range" id="margin" min="0" max="6" step="0.5"><b id="marginV"></b></div>
     <div class="line" id="autoLine" hidden><label class="chk" for="autoPrint">Impression automatique des bordereaux partagés</label><input type="checkbox" id="autoPrint" class="chk"></div>
-    <div class="line" id="diagLine" hidden><span>Imprimante</span><span><button class="btn s" id="diagCopy" hidden>Copier</button> <button class="btn s" id="diagBtn">Tester l'état</button></span></div>
-    <pre id="diagOut" hidden></pre>
     <div class="line"><span>Recadrages mémorisés</span><span id="presets" class="hint"></span></div>
     <div class="line"><span>Application</span><button class="btn s" id="reloadApp">Recharger l'app</button></div>
   </div>
@@ -180,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.5.0';
 // Appli Android (APK) : la page tourne dans une WebView et parle au téléphone via KoaNative
 const NATIVE = window.KoaNative || null;
 
@@ -1171,26 +1168,6 @@ if (NATIVE) {
   $('autoLine').hidden = false;
   $('autoPrint').checked = !!settings.autoPrint;
   $('autoPrint').onchange = e => { settings.autoPrint = e.target.checked; lsSet(LS_SETTINGS, settings); };
-  // diagnostic : réponses brutes de l'imprimante, pour préparer les alertes (papier, capot)
-  $('diagLine').hidden = false;
-  const probes = {}; let probeSeq = 0;
-  window.__koaProbeDone = (id, txt) => { const c = probes[id]; delete probes[id]; if (c) c(txt); };
-  $('diagBtn').onclick = () => {
-    const b = $('diagBtn'); b.disabled = true; b.textContent = 'Test…';
-    const id = ++probeSeq;
-    probes[id] = txt => {
-      const o = $('diagOut'), t = new Date().toLocaleTimeString('fr-FR');
-      o.hidden = false; $('diagCopy').hidden = false;
-      o.textContent = (o.textContent ? o.textContent + '\n\n' : '') + '[' + t + ']\n' + txt;
-      o.scrollTop = o.scrollHeight;
-      b.disabled = false; b.textContent = "Tester l'état";
-    };
-    NATIVE.probe(id);
-  };
-  $('diagCopy').onclick = async () => {
-    try { await navigator.clipboard.writeText($('diagOut').textContent); $('diagCopy').textContent = 'Copié'; setTimeout(() => $('diagCopy').textContent = 'Copier', 1500); }
-    catch (e) { const r = document.createRange(); r.selectNodeContents($('diagOut')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-  };
 }
 renderPresets(); refreshHistCount();
 
