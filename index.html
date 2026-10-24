@@ -176,7 +176,9 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.3.0';
+// Appli Android (APK) : la page tourne dans une WebView et parle au téléphone via KoaNative
+const NATIVE = window.KoaNative || null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -655,9 +657,9 @@ const I_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const I_CROP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg>';
 const I_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>';
 const I_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
-const CAN_PRINT = !!navigator.bluetooth;
-let CAN_SHARE = false;
-try { CAN_SHARE = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] })); } catch (e) { }
+const CAN_PRINT = !!(NATIVE || navigator.bluetooth);
+let CAN_SHARE = !!NATIVE;
+if (!NATIVE) try { CAN_SHARE = !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] })); } catch (e) { }
 
 function actionsHtml(ready) {
   const dis = ready ? '' : ' disabled';
@@ -933,12 +935,14 @@ async function saveHistory(it) {
   refreshHistCount();
 }
 function downloadBlob(blob, name) {
+  if (NATIVE) { blobToB64(blob).then(b => NATIVE.save(b, name)); return; }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 async function shareBlob(blob, name) {
+  if (NATIVE) { NATIVE.share(await blobToB64(blob), name); return; }
   try { await navigator.share({ files: [new File([blob], name, { type: 'application/pdf' })] }); }
   catch (e) { if (!e || e.name !== 'AbortError') { console.warn(e); downloadBlob(blob, name); } }
 }
@@ -991,11 +995,44 @@ async function labelToTspl(blob) {
     return btConcat(btEnc('SIZE 100 mm,150 mm\r\nDIRECTION 1\r\nCLS\r\n'), btEnc(`BITMAP 0,0,${wb},${PR_H},0,`), bits, btEnc('\r\nPRINT 1\r\n'));
   } finally { doc.destroy(); }
 }
+/* ---------- Pont avec l'appli Android ---------- */
+function u8ToB64(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64ToU8(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+async function blobToB64(blob) { return u8ToB64(new Uint8Array(await blob.arrayBuffer())); }
+const nativeCbs = {}; let nativeSeq = 0;
+window.__koaPrintDone = (id, err) => { const c = nativeCbs[id]; delete nativeCbs[id]; if (c) c(err); };
+function nativePrint(u8) {
+  return new Promise((res, rej) => {
+    const id = ++nativeSeq;
+    nativeCbs[id] = err => err ? rej(new Error(err)) : res();
+    NATIVE.print(id, u8ToB64(u8));
+  });
+}
+// PDF reçu par « Partager → KoaLabel » ou « Ouvrir avec »
+window.__koaPending = () => {
+  if (!NATIVE) return;
+  let list = null;
+  try { list = JSON.parse(NATIVE.takePending() || 'null'); } catch (e) { }
+  if (!list || !list.length) return;
+  addFiles(list.map(f => new File([b64ToU8(f.b64)], f.name, { type: 'application/pdf' })));
+};
+// bouton Retour d'Android : ferme d'abord la fenêtre ouverte
+window.__koaBack = () => {
+  if (ed.it) { closeEditor(); return true; }
+  for (const id of ['settings', 'hist']) if ($(id).classList.contains('on')) { $(id).classList.remove('on'); return true; }
+  return false;
+};
+
 async function printBlob(blob, btn) {
   if (printing) return;
   printing = true; clearTimeout(btFreeT); btFreeT = null;
   const html = btn.innerHTML; btn.disabled = true; btn.textContent = 'Impression…';
   try {
+    if (NATIVE) { await nativePrint(await labelToTspl(blob)); setStatus(''); return; }
     await btConnect();
     const job = await labelToTspl(blob);
     try { for (let i = 0; i < job.length; i += PR_PKT) await btChr.writeValueWithoutResponse(job.slice(i, i + PR_PKT)); }
@@ -1120,7 +1157,7 @@ $('margin').oninput = e => {
 $('ver').textContent = 'v' + APP_VERSION;
 renderPresets(); refreshHistCount();
 
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+if (!NATIVE && 'serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
 }
 
@@ -1129,6 +1166,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
    et propose de recharger : jamais besoin de vider le cache de Chrome. */
 let majVue = null;
 async function checkUpdate() {
+  if (NATIVE) return;   // l'APK vérifie ses mises à jour elle-même (GitHub)
   try {
     const r = await fetch('./index.html?_=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) return;
@@ -1144,8 +1182,11 @@ function showMaj(v) {
   d.innerHTML = `<span>Version <b>${esc(v)}</b> disponible</span><button class="btn y s mj" id="majGo">Recharger</button><button class="mx" id="majNo" aria-label="Plus tard">×</button>`;
   document.body.appendChild(d);
   $('majNo').onclick = () => d.remove();
-  $('majGo').onclick = hardReload;
+  if (NATIVE) { $('majGo').textContent = 'Installer'; $('majGo').onclick = () => NATIVE.installUpdate(); }
+  else $('majGo').onclick = hardReload;
 }
+window.__koaUpdate = v => showMaj(v);
+window.__koaUpdProgress = p => { const b = $('majGo'); if (b) { b.disabled = p >= 0; b.textContent = p >= 0 ? Math.round(p * 100) + ' %' : 'Installer'; } };
 // purge la coquille en cache puis recharge ; l'historique (IndexedDB) n'est pas touché
 async function hardReload() {
   const b = $('majGo') || $('reloadApp');
@@ -1160,7 +1201,8 @@ async function hardReload() {
   } catch (e) { }
   location.replace(location.pathname + '?maj=' + Date.now());
 }
-$('reloadApp').onclick = hardReload;
+if (NATIVE) { $('reloadApp').textContent = 'Mise à jour'; $('reloadApp').onclick = () => NATIVE.checkUpdate(); }
+else $('reloadApp').onclick = hardReload;
 setTimeout(checkUpdate, 4000);
 setInterval(checkUpdate, 10 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
