@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -15,6 +16,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -40,6 +42,8 @@ class Printer(private val ctx: Context) {
     private var mtu = 23
     @Volatile private var printing = false
     private val events = LinkedBlockingQueue<Pair<String, Int>>()
+    private val notes = ConcurrentLinkedQueue<String>()   // réponses reçues de l'imprimante
+    private var listening = false
 
     private val release = Runnable { worker.execute { if (!printing) close() } }
 
@@ -54,6 +58,13 @@ class Printer(private val ctx: Context) {
         }
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) { events.offer("services" to status) }
         override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) { events.offer("write" to status) }
+        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) { events.offer("desc" to status) }
+        override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) { note(c, value) }
+        @Deprecated("Android 12 et avant")
+        override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic) {
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < 33) note(c, c.value ?: ByteArray(0))
+        }
     }
 
     /** Imprime le travail TSPL ; [done] reçoit null si tout est parti, sinon le message d'erreur. */
@@ -75,6 +86,66 @@ class Printer(private val ctx: Context) {
             main.postDelayed(release, 8000)
             main.post { done(err) }
         }
+    }
+
+    /** Diagnostic : demande son état à l'imprimante et renvoie ses réponses brutes. */
+    fun probe(done: (String) -> Unit) {
+        main.removeCallbacks(release)
+        worker.execute {
+            printing = true
+            val out = try {
+                connect()
+                listen()
+                val sb = StringBuilder()
+                val cmds = listOf(
+                    "ESC ! ?" to byteArrayOf(0x1b, 0x21, 0x3f),
+                    "ESC ! S" to byteArrayOf(0x1b, 0x21, 0x53),
+                    "~!T" to "~!T\r\n".toByteArray()
+                )
+                for ((label, cmd) in cmds) {
+                    notes.clear()
+                    send(cmd)
+                    Thread.sleep(1200)
+                    val got = generateSequence { notes.poll() }.toList()
+                    sb.append(label).append(" → ").append(if (got.isEmpty()) "rien" else got.joinToString(" | ")).append('\n')
+                }
+                sb.toString().trim()
+            } catch (e: Exception) {
+                close()
+                "erreur : " + (e.message ?: "inconnue")
+            } finally {
+                printing = false
+            }
+            main.removeCallbacks(release)
+            main.postDelayed(release, 8000)
+            main.post { done(out) }
+        }
+    }
+
+    private fun note(c: BluetoothGattCharacteristic, v: ByteArray) {
+        val hex = v.joinToString(" ") { "%02x".format(it) }
+        val txt = String(v.map { if (it in 32..126) it.toInt().toChar() else '.' }.toCharArray())
+        notes.offer("${c.uuid.toString().substring(4, 8)}: $hex [$txt]")
+    }
+
+    /** Active la réception des réponses sur tous les canaux qui en envoient. */
+    @Suppress("DEPRECATION")
+    private fun listen() {
+        if (listening) return
+        val g = gatt ?: return
+        val cccd = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        for (s in g.services) for (c in s.characteristics) {
+            val p = c.properties
+            val notify = (p and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+            if (!notify && (p and BluetoothGattCharacteristic.PROPERTY_INDICATE) == 0) continue
+            g.setCharacteristicNotification(c, true)
+            val d = c.getDescriptor(cccd) ?: continue
+            val v = if (notify) BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE else BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            val ok = if (Build.VERSION.SDK_INT >= 33) g.writeDescriptor(d, v) == BluetoothGatt.GATT_SUCCESS
+                     else { d.value = v; g.writeDescriptor(d) }
+            if (ok) runCatching { await("desc", 2000) }
+        }
+        listening = true
     }
 
     /** Libère tout de suite l'imprimante (appli en arrière-plan). */
@@ -173,6 +244,7 @@ class Printer(private val ctx: Context) {
 
     private fun close() {
         chr = null
+        listening = false
         gatt?.let { runCatching { it.disconnect() }; runCatching { it.close() } }
         gatt = null
     }

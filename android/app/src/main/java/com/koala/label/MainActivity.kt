@@ -313,6 +313,16 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun probe(id: Int) {
+            runOnUiThread {
+                withBluetooth { ok ->
+                    if (!ok) { js("__koaProbeDone($id, ${JSONObject.quote("autorisation Bluetooth refusée")})"); return@withBluetooth }
+                    printer.probe { out -> js("__koaProbeDone($id, ${JSONObject.quote(out)})") }
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun share(b64: String, name: String) {
             val bytes = Base64.decode(b64, Base64.DEFAULT)
             runOnUiThread { runCatching { shareFile(bytes, name) }.onFailure { toast("Partage impossible") } }
