@@ -148,6 +148,16 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(i: Intent?) {
         i ?: return
         val uris = mutableListOf<Uri>()
+        val link = if (i.action == Intent.ACTION_SEND && i.type?.startsWith("text/") == true)
+            Regex("https?://\\S+").find(i.getStringExtra(Intent.EXTRA_TEXT) ?: "")?.value else null
+        if (link != null) {
+            i.action = Intent.ACTION_MAIN
+            fetchLink(link)
+            return
+        }
+        if (i.action == Intent.ACTION_SEND && i.type?.startsWith("text/") == true) {
+            toast("Aucun lien dans ce partage"); return
+        }
         when (i.action) {
             Intent.ACTION_SEND -> {
                 @Suppress("DEPRECATION")
@@ -169,6 +179,41 @@ class MainActivity : ComponentActivity() {
                 synchronized(pending) { pending += JSONObject().put("name", name).put("b64", Base64.encodeToString(bytes, Base64.NO_WRAP)) }
             }.onFailure { toast("Impossible de lire ce fichier") }
             runOnUiThread { deliverPending() }
+        }
+    }
+
+    /** Lien partagé (bordereau ouvert dans Chrome) : on télécharge le PDF. */
+    private fun fetchLink(link: String) {
+        toast("Téléchargement du bordereau…")
+        thread {
+            val host = runCatching { Uri.parse(link).host }.getOrNull() ?: "?"
+            try {
+                var url = java.net.URL(link)
+                var c: java.net.HttpURLConnection
+                var hops = 0
+                while (true) {   // suit les redirections, y compris http → https
+                    c = url.openConnection() as java.net.HttpURLConnection
+                    c.instanceFollowRedirects = false
+                    c.connectTimeout = 15000; c.readTimeout = 30000
+                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) KoaLabel")
+                    val code = c.responseCode
+                    if (code in 300..399 && hops++ < 8) {
+                        val loc = c.getHeaderField("Location") ?: break
+                        url = java.net.URL(url, loc); c.disconnect(); continue
+                    }
+                    if (code != 200) throw IllegalStateException("HTTP $code")
+                    break
+                }
+                val bytes = c.inputStream.use { it.readBytes() }
+                c.disconnect()
+                if (bytes.size < 5 || String(bytes, 0, 5, Charsets.ISO_8859_1) != "%PDF-") throw IllegalStateException("pas un PDF")
+                var name = url.path.substringAfterLast('/').substringBefore('?')
+                if (!name.lowercase().endsWith(".pdf")) name = "bordereau.pdf"
+                synchronized(pending) { pending += JSONObject().put("name", name).put("b64", Base64.encodeToString(bytes, Base64.NO_WRAP)) }
+                runOnUiThread { deliverPending() }
+            } catch (e: Exception) {
+                toast("Bordereau non récupéré ($host : ${e.message}). Télécharge-le puis partage le fichier.")
+            }
         }
     }
 
