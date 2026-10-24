@@ -177,7 +177,7 @@ main{flex:1;min-height:0;width:100%;max-width:1100px;margin:0 auto;padding:0 16p
 <script src="lib/pdf-lib.min.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
 const { PDFDocument, degrees } = PDFLib;
@@ -947,7 +947,15 @@ async function shareBlob(blob, name) {
 /* ---------- Impression directe : Polono PL80E en Bluetooth (TSPL, 203 dpi) ---------- */
 const BT_SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', BT_CHR = '49535343-1e4d-4bd9-ba61-23c647249616';
 const PR_W = 800, PR_H = 1200, PR_PKT = 180;   // 100 × 150 mm ; paquets de 180 octets sans attente (testé : 3 s, net)
-let btDev = null, btChr = null, btKnownTried = false, printing = false;
+let btDev = null, btChr = null, btKnownTried = false, printing = false, btFreeT = null;
+// Libère l'imprimante pour les autres appareils : 8 s après la dernière impression, ou quand l'app passe en arrière-plan
+function btRelease() {
+  clearTimeout(btFreeT); btFreeT = null;
+  if (printing) return;
+  btChr = null;
+  try { if (btDev && btDev.gatt.connected) btDev.gatt.disconnect(); } catch (e) { }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && btFreeT) btRelease(); });
 const btEnc = t => new TextEncoder().encode(t);
 function btConcat(...parts) {
   const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
@@ -986,7 +994,7 @@ async function labelToTspl(blob) {
 }
 async function printBlob(blob, btn) {
   if (printing) return;
-  printing = true;
+  printing = true; clearTimeout(btFreeT); btFreeT = null;
   const html = btn.innerHTML; btn.disabled = true; btn.textContent = 'Impression…';
   try {
     await btConnect();
@@ -996,7 +1004,10 @@ async function printBlob(blob, btn) {
     setStatus('');
   } catch (e) {
     if (!e || e.name !== 'NotFoundError') setStatus('Impression : ' + ((e && e.message) || e));
-  } finally { printing = false; btn.disabled = false; btn.innerHTML = html; }
+  } finally {
+    printing = false; btn.disabled = false; btn.innerHTML = html;
+    if (btDev && btDev.gatt.connected) btFreeT = setTimeout(btRelease, 8000);
+  }
 }
 
 /* ---------- Base locale (IndexedDB) ---------- */
